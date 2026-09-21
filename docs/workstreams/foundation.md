@@ -2,7 +2,7 @@
 
 ## Objective
 
-Phase 0 vertical foundation: one command starts web/API/database and all baseline checks pass. **Status: complete on `work/foundation`, awaiting integration into `develop`.**
+Phase 0 vertical foundation: one command starts web/API/database and all baseline checks pass. **Status: complete and integrated into `main`.**
 
 ## Owned paths
 
@@ -12,7 +12,7 @@ Starter code handed to other streams after integration: `apps/api/**` → backen
 
 ## Current base commit
 
-`c54ad44` (`develop`).
+`c92a29b` (`main`).
 
 ## Decisions made
 
@@ -50,7 +50,7 @@ CI (`.github/workflows/ci.yml`) mirrors this: `checks` job runs `pnpm check`; `s
 
 ## Integration order
 
-Foundation first. Merge `work/foundation` into `develop`, then create backend/research/prediction worktrees per `docs/agent-workflow.md`.
+Foundation is integrated. Create backend, research, and prediction worktrees from `main` per `docs/agent-workflow.md`.
 
 ## Last completed commit
 

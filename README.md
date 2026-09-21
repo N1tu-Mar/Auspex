@@ -99,4 +99,4 @@ scripts/               Developer scripts
 
 ## Working on Auspex
 
-Use `develop` only for integration. After the foundation baseline exists, create isolated Git worktrees for foundation/contracts, backend, research, prediction, frontend, and QA. Each workstream owns its files, updates its status note, runs focused checks, and commits before integration. The exact handoff rules and ready-to-paste agent prompts are in [docs/agent-workflow.md](docs/agent-workflow.md).
+Use `main` only for integration. After the foundation baseline exists, create isolated Git worktrees for foundation/contracts, backend, research, prediction, frontend, and QA. Each workstream owns its files, updates its status note, runs focused checks, and commits before integration. The exact handoff rules and ready-to-paste agent prompts are in [docs/agent-workflow.md](docs/agent-workflow.md).

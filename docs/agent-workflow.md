@@ -2,11 +2,11 @@
 
 ## Current gate
 
-Auspex is initialized but has no application baseline. Run the **foundation prompt** alone first. Do not create implementation worktrees until it lands on `develop` with working format, lint, type-check, test, Compose, and shared-contract commands. This follows the canonical brief and keeps later work independent.
+The Phase 0 foundation is complete on `main`, with working format, lint, type-check, test, Compose, and shared-contract commands. Implementation worktrees may now be created for the first parallel wave.
 
 ## Operating model
 
-`develop` is the integration branch; it is not a feature workspace. Each implementation agent receives a separate worktree and branch, owns only its assigned file surface, commits focused changes, updates its workstream note, and hands off a commit SHA. An integrator merges in this order:
+`main` is the integration branch; it is not a feature workspace. Each implementation agent receives a separate worktree and branch, owns only its assigned file surface, commits focused changes, updates its workstream note, and hands off a commit SHA. An integrator merges in this order:
 
 ```text
 foundation/contracts -> backend -> research + prediction -> frontend -> QA
@@ -37,7 +37,7 @@ Own Phase 0 foundation only. Establish the Auspex monorepo structure described i
 From the clean integration checkout after foundation is merged:
 
 ```bash
-git switch develop
+git switch main
 git worktree add ../auspex-backend -b work/backend
 git worktree add ../auspex-research -b work/research
 git worktree add ../auspex-prediction -b work/prediction
@@ -95,7 +95,7 @@ Own tests/e2e/**, tests/contract/**, tests/integration/**, and operational docum
 ## Integrator prompt
 
 ```text
-You are the Auspex integration agent on develop. Read AGENTS.md, prompt.md, all affected workstream notes, and each candidate branch’s diff before merging. Integrate only clean, focused commits in dependency order. Resolve conflicts by preserving the canonical contract and requesting clarification from the owning stream rather than silently redesigning. After each merge, run the smallest cross-boundary checks; at the milestone boundary run the full baseline suite. Update docs/workstreams/integration.md with merged SHAs, commands/results, environment or migration changes, and remaining limitations. Do not develop features directly on develop.
+You are the Auspex integration agent on main. Read AGENTS.md, prompt.md, all affected workstream notes, and each candidate branch’s diff before merging. Integrate only clean, focused commits in dependency order. Resolve conflicts by preserving the canonical contract and requesting clarification from the owning stream rather than silently redesigning. After each merge, run the smallest cross-boundary checks; at the milestone boundary run the full baseline suite. Update docs/workstreams/integration.md with merged SHAs, commands/results, environment or migration changes, and remaining limitations. Do not develop features directly on main.
 ```
 
 ## Handoff template
