@@ -87,13 +87,13 @@ integrated `main`, the same suite runs against the Compose stack.
 
 ## Known issues
 
-- **Defect found:** pressing Enter on "Parse into legs" or "Check legs" disables the button while
-  the request is pending, and keyboard focus falls to `<body>`. See
-  `requests/qa-frontend-keyboard-focus-after-submit.md`.
+- **Resolved during frontend integration:** submit controls now use `aria-disabled` with a pending
+  guard, so keyboard focus stays on the control. The formerly expected-failure test is active.
 - Evidence, conflicting-evidence, and per-provider partial-failure scenarios cannot be tested:
   no evidence API or UI exists. They are tracked as `test.fixme`. The partial-failure test that
   does exist covers intake: a failed re-check keeps the earlier successful result.
-- There is no router, history, or persistence, so refresh/navigation state is untested.
+- The frontend now has a small History API router and restores the current workspace after a
+  same-tab reload. Persistence beyond the tab is still unimplemented.
 - `tests/integration` and `tests/contract` are not in root pytest `testpaths` yet. See
   `requests/qa-foundation-pytest-testpaths.md`.
 - CI's `stack` job will fail these specs until `work/frontend` merges to `main`.

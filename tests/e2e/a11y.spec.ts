@@ -44,13 +44,13 @@ test("every leg control has an accessible name", async ({ page }) => {
 
 test("paste flow works from the keyboard alone", async ({ page }) => {
   await page.keyboard.press("Tab");
-  await expect(page.getByLabel("Slip text")).toBeFocused();
-  await page.keyboard.type("Chiefs ML @ 0.56");
-  await page.keyboard.press("Tab");
   await expect(page.getByLabel("Stake (USD)")).toBeFocused();
   await page.keyboard.type("25");
   await page.keyboard.press("Tab");
   await expect(page.getByLabel("Quoted gross payout (USD, optional)")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("Slip text")).toBeFocused();
+  await page.keyboard.type("Chiefs ML @ 0.56");
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Parse into legs" })).toBeFocused();
   await page.keyboard.press("Enter");
@@ -85,10 +85,7 @@ test("ambiguous candidates can be chosen with arrow keys", async ({ page }) => {
   await expect(leg.getByLabel("Event ID")).toHaveValue("qa-nfl-nyg-phi");
 });
 
-// Known defect, see docs/workstreams/requests/qa-frontend-keyboard-focus-after-submit.md.
-// test.fail flips to a failure once fixed, as a reminder to drop the marker.
 test("keyboard focus survives a submit", async ({ page }) => {
-  test.fail();
   let release = () => {};
   const gate = new Promise<void>((done) => {
     release = done;
