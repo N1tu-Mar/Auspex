@@ -29,9 +29,65 @@ The prescribed stack is React, TypeScript, Vite, Tailwind, TanStack Query, React
 
 ## Current status
 
-The repository is at **Phase 0 / foundation setup**. The canonical brief, repository guidance, Git ignore rules, and the multi-agent delivery workflow are present. Application code, dependency manifests, database schema, Compose configuration, CI, tests, and worktrees have not been created yet.
+**Phase 0 foundation is in place**: monorepo layout, pnpm + uv workspaces, minimal React/Vite web app, FastAPI API, Docker Compose with one private PostgreSQL, SQLAlchemy/Alembic migrations, typed `BetSlip`/`BetLeg` contracts, generated TypeScript types, baseline checks, and CI. No product screens, provider integrations, or prediction models exist yet. See [docs/workstreams/foundation.md](docs/workstreams/foundation.md).
 
 Read [prompt.md](prompt.md) for the complete product and engineering specification. Read [docs/agent-workflow.md](docs/agent-workflow.md) before launching parallel implementation work.
+
+## Quick start
+
+Prerequisite: Docker with the Compose plugin. Start the web/API/database stack with one command:
+
+```bash
+docker compose up --build
+```
+
+- Web: <http://localhost:5173> (shows API and database health)
+- API: <http://localhost:8000/api/health>, docs at <http://localhost:8000/docs>
+- PostgreSQL: `localhost:5432`, bound to localhost only
+
+The API runs `alembic upgrade head` on start. Defaults are local-only fake credentials; copy `.env.example` to `.env` to override them. Stop with `docker compose down` (add `-v` to delete the database volume).
+
+## Development commands
+
+Prerequisites for host-side checks: Node 22+, pnpm 10 (`corepack enable`), uv, and Python 3.12+ (uv installs it from `.python-version` when missing).
+
+```bash
+pnpm install && uv sync          # install JS and Python dependencies
+cp .env.example .env             # host-side DATABASE_URL for API, Alembic, and DB tests
+
+pnpm check                       # all baseline checks: lint, typecheck, unit tests, contract drift
+pnpm fmt                         # auto-format and fix lint (Biome + Ruff)
+pnpm lint                        # Biome (TS/JSON) + Ruff lint/format check (Python)
+pnpm typecheck                   # tsc + mypy --strict
+pnpm test                        # Vitest + pytest (unit and contract; no database)
+pnpm contracts                   # regenerate OpenAPI JSON and TypeScript types
+pnpm contracts:check             # fail if generated contracts drifted from the Pydantic source
+
+docker compose up -d --build --wait   # stack required by the next two
+pnpm test:db                     # migrations apply, models match migrations, UTC round-trip
+pnpm exec playwright install chromium # once
+pnpm test:e2e                    # Playwright smoke test against the running stack
+
+uv run alembic revision --autogenerate -m "describe change"   # foundation stream only
+uv run uvicorn app.main:app --app-dir apps/api --reload       # API on the host
+pnpm --filter web dev                                         # web on the host
+```
+
+## Contracts
+
+The Pydantic models in `packages/contracts/auspex_contracts` are the single source of truth for cross-language domain types. `pnpm contracts` renders the FastAPI OpenAPI document to `packages/contracts/openapi/openapi.json` and generates `packages/contracts/generated/api.d.ts`; the web app imports types from `@auspex/contracts`. Never hand-edit generated files or duplicate domain types in TypeScript. CI fails on drift.
+
+## Layout
+
+```text
+apps/api/              FastAPI app (app/) and tests
+apps/web/              React/Vite app (src/) and tests
+packages/contracts/    Pydantic contracts, fixtures, generated OpenAPI + TypeScript
+database/migrations/   Alembic migrations (serialized through the foundation stream)
+infra/postgres/        Database init script (non-superuser application role)
+tests/e2e/             Playwright smoke tests
+scripts/               Developer scripts
+```
 
 ## Delivery path
 

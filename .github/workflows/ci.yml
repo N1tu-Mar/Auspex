@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "work/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, types, unit and contract tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: astral-sh/setup-uv@v6
+      - run: pnpm install --frozen-lockfile
+      - run: uv sync --frozen
+      - run: pnpm check
+
+  stack:
+    name: Compose stack, migrations and smoke test
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql+psycopg://auspex_app:auspex_app_local_only@localhost:5432/auspex
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: astral-sh/setup-uv@v6
+      - run: pnpm install --frozen-lockfile
+      - run: uv sync --frozen
+      - run: docker compose up -d --build --wait
+      - run: pnpm test:db
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - if: failure()
+        run: docker compose logs
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with: { name: playwright-report, path: test-results, retention-days: 7 }
