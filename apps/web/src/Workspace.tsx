@@ -87,7 +87,7 @@ export function Workspace({
         </p>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Panel title="Probability versus price">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[26rem] text-xs">
@@ -246,7 +246,7 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section
       aria-labelledby={id}
-      className="flex flex-col gap-3 rounded-sm border border-rule bg-panel p-4"
+      className="flex min-w-0 flex-col gap-3 rounded-sm border border-rule bg-panel p-4"
     >
       <h3 id={id} className="text-sm font-semibold">
         {title}

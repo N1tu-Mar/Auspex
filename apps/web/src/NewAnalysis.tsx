@@ -114,7 +114,7 @@ export function NewAnalysis({ onContinue }: { onContinue: (result: IntakeResult)
             <p className="mt-1 text-xs text-muted">
               Used for pasted and manual slips alike. Amounts are kept exactly as typed.
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-[10rem_14rem]">
+            <div className="mt-3 grid grid-cols-2 items-end gap-3 sm:grid-cols-[10rem_14rem]">
               <SlipField name="stake_usd" label="Stake (USD)" />
               <SlipField name="gross_payout_usd" label="Quoted gross payout (USD, optional)" />
             </div>
