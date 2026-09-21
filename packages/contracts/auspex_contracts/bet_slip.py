@@ -3,7 +3,9 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, Field, field_validator
+
+from auspex_contracts._base import Contract as _Contract
 
 
 class Sport(StrEnum):
@@ -49,10 +51,6 @@ class Recommendation(StrEnum):
 # Polymarket share price in USD; a binary share pays 1.00 USD, so price lies strictly in (0, 1).
 MarketPriceUsd = Annotated[Decimal, Field(gt=0, lt=1, max_digits=6, decimal_places=4)]
 PositiveUsd = Annotated[Decimal, Field(gt=0, max_digits=12, decimal_places=2)]
-
-
-class _Contract(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
 
 
 class BetLeg(_Contract):

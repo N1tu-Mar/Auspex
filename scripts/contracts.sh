@@ -12,7 +12,7 @@ if [[ "${1:-}" == "--check" ]]; then
 fi
 mkdir -p "$dest/openapi" "$dest/generated"
 
-uv run --quiet python -m app.openapi > "$dest/openapi/openapi.json"
+uv run --quiet python scripts/render_openapi.py > "$dest/openapi/openapi.json"
 pnpm exec openapi-typescript "$dest/openapi/openapi.json" -o "$dest/generated/api.d.ts"
 
 if [[ "${1:-}" == "--check" ]]; then

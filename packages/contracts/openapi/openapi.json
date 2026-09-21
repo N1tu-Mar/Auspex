@@ -919,6 +919,1403 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "AnalysisRef": {
+        "additionalProperties": false,
+        "description": "Stable reference a future paper trade points at; carries no paper-trade behavior.",
+        "properties": {
+          "analysis_id": {
+            "format": "uuid",
+            "title": "Analysis Id",
+            "type": "string"
+          },
+          "bet_slip_id": {
+            "format": "uuid",
+            "title": "Bet Slip Id",
+            "type": "string"
+          },
+          "as_of_utc": {
+            "format": "date-time",
+            "title": "As Of Utc",
+            "type": "string"
+          },
+          "recommendation": {
+            "$ref": "#/components/schemas/Recommendation"
+          }
+        },
+        "required": [
+          "analysis_id",
+          "bet_slip_id",
+          "as_of_utc",
+          "recommendation"
+        ],
+        "title": "AnalysisRef",
+        "type": "object"
+      },
+      "AnalysisRun": {
+        "additionalProperties": false,
+        "description": "Complete, auditable record of one analysis of one saved slip. Immutable once stored.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "as_of_utc": {
+            "description": "Data cutoff: nothing newer was used.",
+            "format": "date-time",
+            "title": "As Of Utc",
+            "type": "string"
+          },
+          "bet_slip_id": {
+            "format": "uuid",
+            "title": "Bet Slip Id",
+            "type": "string"
+          },
+          "intake_record_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Intake Record Id"
+          },
+          "code_version": {
+            "description": "Git commit of the analysis code.",
+            "minLength": 1,
+            "title": "Code Version",
+            "type": "string"
+          },
+          "model_version": {
+            "minLength": 1,
+            "title": "Model Version",
+            "type": "string"
+          },
+          "legs": {
+            "items": {
+              "$ref": "#/components/schemas/LegAnalysis"
+            },
+            "minItems": 1,
+            "title": "Legs",
+            "type": "array"
+          },
+          "combo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComboAssessment"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Set only for 2+ legs."
+          },
+          "expected_value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExpectedValue"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "recommendation": {
+            "$ref": "#/components/schemas/RecommendationResult"
+          }
+        },
+        "required": [
+          "created_at",
+          "as_of_utc",
+          "bet_slip_id",
+          "code_version",
+          "model_version",
+          "legs",
+          "recommendation"
+        ],
+        "title": "AnalysisRun",
+        "type": "object"
+      },
+      "ClaimKind": {
+        "enum": [
+          "CONFIRMED_FACT",
+          "PROJECTION",
+          "RUMOR",
+          "OPINION",
+          "INFERENCE"
+        ],
+        "title": "ClaimKind",
+        "type": "string"
+      },
+      "ComboAssessment": {
+        "additionalProperties": false,
+        "properties": {
+          "naive_baseline": {
+            "$ref": "#/components/schemas/NaiveIndependentBaseline"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorrelationWarning"
+            },
+            "title": "Warnings",
+            "type": "array"
+          },
+          "joint_probability": {
+            "$ref": "#/components/schemas/InsufficientData"
+          }
+        },
+        "required": [
+          "naive_baseline",
+          "joint_probability"
+        ],
+        "title": "ComboAssessment",
+        "type": "object"
+      },
+      "CorrelationWarning": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/DependencyKind"
+          },
+          "leg_indices": {
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "title": "Leg Indices",
+            "type": "array"
+          },
+          "explanation": {
+            "minLength": 1,
+            "title": "Explanation",
+            "type": "string"
+          },
+          "magnitude": {
+            "const": "UNQUANTIFIED",
+            "default": "UNQUANTIFIED",
+            "title": "Magnitude",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "leg_indices",
+          "explanation"
+        ],
+        "title": "CorrelationWarning",
+        "type": "object"
+      },
+      "DependencyKind": {
+        "enum": [
+          "SHARED_GAME",
+          "SAME_MARKET",
+          "SHARED_TEAM",
+          "SHARED_PLAYER",
+          "SHARED_WEATHER",
+          "GAME_SCRIPT",
+          "UNKNOWN_DEPENDENCY"
+        ],
+        "title": "DependencyKind",
+        "type": "string"
+      },
+      "Event": {
+        "additionalProperties": false,
+        "description": "Canonical event identity. `event_id` is the id carried by `BetLeg.event_id`.",
+        "properties": {
+          "event_id": {
+            "minLength": 1,
+            "title": "Event Id",
+            "type": "string"
+          },
+          "sport": {
+            "$ref": "#/components/schemas/Sport"
+          },
+          "league": {
+            "minLength": 1,
+            "title": "League",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "sport",
+          "league",
+          "created_at"
+        ],
+        "title": "Event",
+        "type": "object"
+      },
+      "EventSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "event_id": {
+            "minLength": 1,
+            "title": "Event Id",
+            "type": "string"
+          },
+          "captured_at": {
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "event_start_utc": {
+            "format": "date-time",
+            "title": "Event Start Utc",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LegStatus"
+          },
+          "home_participant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Home Participant"
+          },
+          "away_participant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Away Participant"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceSnapshot"
+          }
+        },
+        "required": [
+          "event_id",
+          "captured_at",
+          "event_start_utc",
+          "status",
+          "source"
+        ],
+        "title": "EventSnapshot",
+        "type": "object"
+      },
+      "EvidenceCategory": {
+        "enum": [
+          "MARKET",
+          "ODDS",
+          "STATS",
+          "NEWS",
+          "WEATHER",
+          "INJURY",
+          "LINEUP"
+        ],
+        "title": "EvidenceCategory",
+        "type": "string"
+      },
+      "EvidenceItem": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_id": {
+            "default": "",
+            "description": "SHA-256 of all other fields; auto-filled.",
+            "title": "Evidence Id",
+            "type": "string"
+          },
+          "event_id": {
+            "minLength": 1,
+            "title": "Event Id",
+            "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/EvidenceCategory"
+          },
+          "claim_kind": {
+            "$ref": "#/components/schemas/ClaimKind"
+          },
+          "extracted_fact": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Extracted Fact",
+            "type": "string"
+          },
+          "excerpt": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Excerpt"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceSnapshot"
+          },
+          "derived_from": {
+            "default": [],
+            "description": "evidence_ids an INFERENCE was derived from.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Derived From",
+            "type": "array"
+          }
+        },
+        "required": [
+          "event_id",
+          "category",
+          "claim_kind",
+          "extracted_fact",
+          "source"
+        ],
+        "title": "EvidenceItem",
+        "type": "object"
+      },
+      "EvidenceSnapshot": {
+        "additionalProperties": false,
+        "description": "The exact evidence used for one event at one moment. Never mutated; newer data = new one.",
+        "properties": {
+          "snapshot_id": {
+            "default": "",
+            "description": "SHA-256 of all other fields; auto-filled.",
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "event_id": {
+            "minLength": 1,
+            "title": "Event Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "failures": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ProviderFailure"
+            },
+            "title": "Failures",
+            "type": "array"
+          }
+        },
+        "required": [
+          "event_id",
+          "created_at",
+          "items"
+        ],
+        "title": "EvidenceSnapshot",
+        "type": "object"
+      },
+      "ExpectedValue": {
+        "additionalProperties": false,
+        "properties": {
+          "costs": {
+            "$ref": "#/components/schemas/PositionCosts"
+          },
+          "model_probability": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Model Probability"
+          },
+          "break_even_probability": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "May exceed 1: no probability breaks even.",
+            "title": "Break Even Probability"
+          },
+          "edge_probability_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Edge Probability Points"
+          },
+          "expected_profit_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Expected Profit Usd"
+          },
+          "expected_return_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Expected Return Pct"
+          }
+        },
+        "required": [
+          "costs",
+          "model_probability",
+          "break_even_probability",
+          "edge_probability_points",
+          "expected_profit_usd",
+          "expected_return_pct"
+        ],
+        "title": "ExpectedValue",
+        "type": "object"
+      },
+      "FeatureObservation": {
+        "additionalProperties": false,
+        "description": "One feature value. Set at most one of the two values; neither means \"source says unknown\".",
+        "properties": {
+          "value_decimal": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value Decimal"
+          },
+          "value_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value Text"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "source_ref": {
+            "description": "Evidence snapshot or source identifier.",
+            "minLength": 1,
+            "title": "Source Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "observed_at",
+          "source_ref"
+        ],
+        "title": "FeatureObservation",
+        "type": "object"
+      },
+      "FeatureSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "event_id": {
+            "minLength": 1,
+            "title": "Event Id",
+            "type": "string"
+          },
+          "sport": {
+            "$ref": "#/components/schemas/Sport"
+          },
+          "captured_at": {
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "feature_set_version": {
+            "description": "Sport adapter feature definition version.",
+            "minLength": 1,
+            "title": "Feature Set Version",
+            "type": "string"
+          },
+          "evidence_snapshot_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Evidence the features derive from.",
+            "title": "Evidence Snapshot Id"
+          },
+          "features": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FeatureObservation"
+            },
+            "title": "Features",
+            "type": "object"
+          }
+        },
+        "required": [
+          "event_id",
+          "sport",
+          "captured_at",
+          "feature_set_version",
+          "features"
+        ],
+        "title": "FeatureSnapshot",
+        "type": "object"
+      },
+      "InsufficientData": {
+        "additionalProperties": false,
+        "description": "No responsible estimate is possible; `reasons` says why, in plain language.",
+        "properties": {
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Reasons",
+            "type": "array"
+          },
+          "status": {
+            "const": "INSUFFICIENT_DATA",
+            "default": "INSUFFICIENT_DATA",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reasons"
+        ],
+        "title": "InsufficientData",
+        "type": "object"
+      },
+      "LegAnalysis": {
+        "additionalProperties": false,
+        "description": "One leg's result plus the exact snapshots it was computed from.",
+        "properties": {
+          "leg_index": {
+            "minimum": 0,
+            "title": "Leg Index",
+            "type": "integer"
+          },
+          "market_implied_probability": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Market Implied Probability"
+          },
+          "consensus_probability": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "De-vigged external consensus, when books were available.",
+            "title": "Consensus Probability"
+          },
+          "estimate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LegEstimate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "insufficient_data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InsufficientData"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "edge_probability_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Edge Probability Points"
+          },
+          "event_snapshot_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Event Snapshot Id"
+          },
+          "market_snapshot_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Market Snapshot Id"
+          },
+          "evidence_snapshot_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Evidence Snapshot Id"
+          },
+          "feature_snapshot_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Feature Snapshot Id"
+          }
+        },
+        "required": [
+          "leg_index",
+          "market_implied_probability"
+        ],
+        "title": "LegAnalysis",
+        "type": "object"
+      },
+      "LegEstimate": {
+        "additionalProperties": false,
+        "properties": {
+          "model_probability": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Model Probability"
+          },
+          "interval": {
+            "$ref": "#/components/schemas/UncertaintyInterval"
+          },
+          "model_version": {
+            "minLength": 1,
+            "title": "Model Version",
+            "type": "string"
+          },
+          "snapshot_captured_at_utc": {
+            "format": "date-time",
+            "title": "Snapshot Captured At Utc",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model_probability",
+          "interval",
+          "model_version",
+          "snapshot_captured_at_utc"
+        ],
+        "title": "LegEstimate",
+        "type": "object"
+      },
+      "Market": {
+        "additionalProperties": false,
+        "description": "Provider market identity. A different line is a different market.",
+        "properties": {
+          "provider": {
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          },
+          "market_id": {
+            "minLength": 1,
+            "title": "Market Id",
+            "type": "string"
+          },
+          "event_id": {
+            "minLength": 1,
+            "title": "Event Id",
+            "type": "string"
+          },
+          "market_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarketType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "None when the provider type has no normalized equivalent."
+          },
+          "provider_market_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Provider Market Type"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Line"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Slug"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "market_id",
+          "event_id",
+          "created_at"
+        ],
+        "title": "Market",
+        "type": "object"
+      },
+      "MarketSideQuote": {
+        "additionalProperties": false,
+        "properties": {
+          "side_id": {
+            "title": "Side Id",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "is_long": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Is Long"
+          },
+          "price_usd": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,2}|(?=[\\d.]{1,7}0*$)\\d{0,2}\\.\\d{0,4}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Per-share price in USD; None if unusable.",
+            "title": "Price Usd"
+          },
+          "tradable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tradable"
+          }
+        },
+        "required": [
+          "side_id"
+        ],
+        "title": "MarketSideQuote",
+        "type": "object"
+      },
+      "MarketSnapshot": {
+        "additionalProperties": false,
+        "description": "One observation of a market's tradable state. Unknowns stay None and add a warning.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "provider": {
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          },
+          "market_id": {
+            "minLength": 1,
+            "title": "Market Id",
+            "type": "string"
+          },
+          "captured_at": {
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "is_open": {
+            "title": "Is Open",
+            "type": "boolean"
+          },
+          "combo_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Combo Enabled"
+          },
+          "best_bid_usd": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,2}|(?=[\\d.]{1,7}0*$)\\d{0,2}\\.\\d{0,4}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Best Bid Usd"
+          },
+          "best_ask_usd": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,2}|(?=[\\d.]{1,7}0*$)\\d{0,2}\\.\\d{0,4}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Best Ask Usd"
+          },
+          "fee_coefficient": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Fee Coefficient"
+          },
+          "sides": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MarketSideQuote"
+            },
+            "title": "Sides",
+            "type": "array"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceSnapshot"
+          }
+        },
+        "required": [
+          "provider",
+          "market_id",
+          "captured_at",
+          "is_open",
+          "source"
+        ],
+        "title": "MarketSnapshot",
+        "type": "object"
+      },
+      "NaiveIndependentBaseline": {
+        "additionalProperties": false,
+        "description": "Product of leg probabilities. A comparison baseline only, never a recommendation input.",
+        "properties": {
+          "probability": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Probability"
+          },
+          "label": {
+            "const": "NAIVE_INDEPENDENT_BASELINE",
+            "default": "NAIVE_INDEPENDENT_BASELINE",
+            "title": "Label",
+            "type": "string"
+          },
+          "assumption": {
+            "default": "treats legs as independent; wrong whenever legs share a dependency",
+            "title": "Assumption",
+            "type": "string"
+          }
+        },
+        "required": [
+          "probability"
+        ],
+        "title": "NaiveIndependentBaseline",
+        "type": "object"
+      },
+      "PositionCosts": {
+        "additionalProperties": false,
+        "properties": {
+          "stake_usd": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Stake Usd"
+          },
+          "gross_payout_usd": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Gross Payout Usd"
+          },
+          "estimated_fees_usd": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Estimated Fees Usd"
+          },
+          "estimated_slippage_usd": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Estimated Slippage Usd"
+          }
+        },
+        "required": [
+          "stake_usd",
+          "gross_payout_usd",
+          "estimated_fees_usd",
+          "estimated_slippage_usd"
+        ],
+        "title": "PositionCosts",
+        "type": "object"
+      },
+      "ProviderErrorKind": {
+        "enum": [
+          "TIMEOUT",
+          "RATE_LIMITED",
+          "UNAVAILABLE",
+          "NOT_FOUND",
+          "BAD_REQUEST",
+          "SCHEMA"
+        ],
+        "title": "ProviderErrorKind",
+        "type": "string"
+      },
+      "ProviderFailure": {
+        "additionalProperties": false,
+        "description": "A provider that failed during collection; kept so partial failures stay visible.",
+        "properties": {
+          "provider": {
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProviderErrorKind"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "kind",
+          "message",
+          "occurred_at"
+        ],
+        "title": "ProviderFailure",
+        "type": "object"
+      },
+      "Recommendation": {
+        "enum": [
+          "CONSIDER",
+          "PASS",
+          "AVOID",
+          "INSUFFICIENT_DATA"
+        ],
+        "title": "Recommendation",
+        "type": "string"
+      },
+      "RecommendationResult": {
+        "additionalProperties": false,
+        "properties": {
+          "recommendation": {
+            "$ref": "#/components/schemas/Recommendation"
+          },
+          "reason": {
+            "description": "One sentence.",
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "insufficient_data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InsufficientData"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "recommendation",
+          "reason"
+        ],
+        "title": "RecommendationResult",
+        "type": "object"
+      },
+      "SourceSnapshot": {
+        "additionalProperties": false,
+        "description": "Where a fact, quote, or event state came from and when it was retrieved.",
+        "properties": {
+          "provider": {
+            "description": "Adapter that retrieved it.",
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          },
+          "publisher": {
+            "minLength": 1,
+            "title": "Publisher",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "When the source says.",
+            "title": "Published At"
+          },
+          "retrieved_at": {
+            "format": "date-time",
+            "title": "Retrieved At",
+            "type": "string"
+          },
+          "content_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Content Sha256"
+          }
+        },
+        "required": [
+          "provider",
+          "publisher",
+          "url",
+          "retrieved_at"
+        ],
+        "title": "SourceSnapshot",
+        "type": "object"
+      },
+      "UncertaintyInterval": {
+        "additionalProperties": false,
+        "properties": {
+          "low": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Low"
+          },
+          "high": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "High"
+          }
+        },
+        "required": [
+          "low",
+          "high"
+        ],
+        "title": "UncertaintyInterval",
+        "type": "object"
       }
     }
   }

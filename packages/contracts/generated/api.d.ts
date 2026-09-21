@@ -322,6 +322,589 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /**
+         * AnalysisRef
+         * @description Stable reference a future paper trade points at; carries no paper-trade behavior.
+         */
+        AnalysisRef: {
+            /**
+             * Analysis Id
+             * Format: uuid
+             */
+            analysis_id: string;
+            /**
+             * Bet Slip Id
+             * Format: uuid
+             */
+            bet_slip_id: string;
+            /**
+             * As Of Utc
+             * Format: date-time
+             */
+            as_of_utc: string;
+            recommendation: components["schemas"]["Recommendation"];
+        };
+        /**
+         * AnalysisRun
+         * @description Complete, auditable record of one analysis of one saved slip. Immutable once stored.
+         */
+        AnalysisRun: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id?: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * As Of Utc
+             * Format: date-time
+             * @description Data cutoff: nothing newer was used.
+             */
+            as_of_utc: string;
+            /**
+             * Bet Slip Id
+             * Format: uuid
+             */
+            bet_slip_id: string;
+            /**
+             * Intake Record Id
+             * @default null
+             */
+            intake_record_id: string | null;
+            /**
+             * Code Version
+             * @description Git commit of the analysis code.
+             */
+            code_version: string;
+            /** Model Version */
+            model_version: string;
+            /** Legs */
+            legs: components["schemas"]["LegAnalysis"][];
+            /**
+             * @description Set only for 2+ legs.
+             * @default null
+             */
+            combo: components["schemas"]["ComboAssessment"] | null;
+            /** @default null */
+            expected_value: components["schemas"]["ExpectedValue"] | null;
+            recommendation: components["schemas"]["RecommendationResult"];
+        };
+        /**
+         * ClaimKind
+         * @enum {string}
+         */
+        ClaimKind: "CONFIRMED_FACT" | "PROJECTION" | "RUMOR" | "OPINION" | "INFERENCE";
+        /** ComboAssessment */
+        ComboAssessment: {
+            naive_baseline: components["schemas"]["NaiveIndependentBaseline"];
+            /**
+             * Warnings
+             * @default []
+             */
+            warnings: components["schemas"]["CorrelationWarning"][];
+            joint_probability: components["schemas"]["InsufficientData"];
+        };
+        /** CorrelationWarning */
+        CorrelationWarning: {
+            kind: components["schemas"]["DependencyKind"];
+            /** Leg Indices */
+            leg_indices: number[];
+            /** Explanation */
+            explanation: string;
+            /**
+             * Magnitude
+             * @default UNQUANTIFIED
+             * @constant
+             */
+            magnitude: "UNQUANTIFIED";
+        };
+        /**
+         * DependencyKind
+         * @enum {string}
+         */
+        DependencyKind: "SHARED_GAME" | "SAME_MARKET" | "SHARED_TEAM" | "SHARED_PLAYER" | "SHARED_WEATHER" | "GAME_SCRIPT" | "UNKNOWN_DEPENDENCY";
+        /**
+         * Event
+         * @description Canonical event identity. `event_id` is the id carried by `BetLeg.event_id`.
+         */
+        Event: {
+            /** Event Id */
+            event_id: string;
+            sport: components["schemas"]["Sport"];
+            /** League */
+            league: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** EventSnapshot */
+        EventSnapshot: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id?: string;
+            /** Event Id */
+            event_id: string;
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            /**
+             * Event Start Utc
+             * Format: date-time
+             */
+            event_start_utc: string;
+            status: components["schemas"]["LegStatus"];
+            /**
+             * Home Participant
+             * @default null
+             */
+            home_participant: string | null;
+            /**
+             * Away Participant
+             * @default null
+             */
+            away_participant: string | null;
+            source: components["schemas"]["SourceSnapshot"];
+        };
+        /**
+         * EvidenceCategory
+         * @enum {string}
+         */
+        EvidenceCategory: "MARKET" | "ODDS" | "STATS" | "NEWS" | "WEATHER" | "INJURY" | "LINEUP";
+        /** EvidenceItem */
+        EvidenceItem: {
+            /**
+             * Evidence Id
+             * @description SHA-256 of all other fields; auto-filled.
+             * @default
+             */
+            evidence_id: string;
+            /** Event Id */
+            event_id: string;
+            category: components["schemas"]["EvidenceCategory"];
+            claim_kind: components["schemas"]["ClaimKind"];
+            /** Extracted Fact */
+            extracted_fact: string;
+            /**
+             * Excerpt
+             * @default null
+             */
+            excerpt: string | null;
+            source: components["schemas"]["SourceSnapshot"];
+            /**
+             * Derived From
+             * @description evidence_ids an INFERENCE was derived from.
+             * @default []
+             */
+            derived_from: string[];
+        };
+        /**
+         * EvidenceSnapshot
+         * @description The exact evidence used for one event at one moment. Never mutated; newer data = new one.
+         */
+        EvidenceSnapshot: {
+            /**
+             * Snapshot Id
+             * @description SHA-256 of all other fields; auto-filled.
+             * @default
+             */
+            snapshot_id: string;
+            /** Event Id */
+            event_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Items */
+            items: components["schemas"]["EvidenceItem"][];
+            /**
+             * Failures
+             * @default []
+             */
+            failures: components["schemas"]["ProviderFailure"][];
+        };
+        /** ExpectedValue */
+        ExpectedValue: {
+            costs: components["schemas"]["PositionCosts"];
+            /** Model Probability */
+            model_probability: number | string;
+            /**
+             * Break Even Probability
+             * @description May exceed 1: no probability breaks even.
+             */
+            break_even_probability: number | string;
+            /** Edge Probability Points */
+            edge_probability_points: number | string;
+            /** Expected Profit Usd */
+            expected_profit_usd: number | string;
+            /** Expected Return Pct */
+            expected_return_pct: number | string;
+        };
+        /**
+         * FeatureObservation
+         * @description One feature value. Set at most one of the two values; neither means "source says unknown".
+         */
+        FeatureObservation: {
+            /**
+             * Value Decimal
+             * @default null
+             */
+            value_decimal: number | string | null;
+            /**
+             * Value Text
+             * @default null
+             */
+            value_text: string | null;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /**
+             * Source Ref
+             * @description Evidence snapshot or source identifier.
+             */
+            source_ref: string;
+        };
+        /** FeatureSnapshot */
+        FeatureSnapshot: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id?: string;
+            /** Event Id */
+            event_id: string;
+            sport: components["schemas"]["Sport"];
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            /**
+             * Feature Set Version
+             * @description Sport adapter feature definition version.
+             */
+            feature_set_version: string;
+            /**
+             * Evidence Snapshot Id
+             * @description Evidence the features derive from.
+             * @default null
+             */
+            evidence_snapshot_id: string | null;
+            /** Features */
+            features: {
+                [key: string]: components["schemas"]["FeatureObservation"];
+            };
+        };
+        /**
+         * InsufficientData
+         * @description No responsible estimate is possible; `reasons` says why, in plain language.
+         */
+        InsufficientData: {
+            /** Reasons */
+            reasons: string[];
+            /**
+             * Status
+             * @default INSUFFICIENT_DATA
+             * @constant
+             */
+            status: "INSUFFICIENT_DATA";
+        };
+        /**
+         * LegAnalysis
+         * @description One leg's result plus the exact snapshots it was computed from.
+         */
+        LegAnalysis: {
+            /** Leg Index */
+            leg_index: number;
+            /** Market Implied Probability */
+            market_implied_probability: number | string;
+            /**
+             * Consensus Probability
+             * @description De-vigged external consensus, when books were available.
+             * @default null
+             */
+            consensus_probability: number | string | null;
+            /** @default null */
+            estimate: components["schemas"]["LegEstimate"] | null;
+            /** @default null */
+            insufficient_data: components["schemas"]["InsufficientData"] | null;
+            /**
+             * Edge Probability Points
+             * @default null
+             */
+            edge_probability_points: number | string | null;
+            /**
+             * Event Snapshot Id
+             * @default null
+             */
+            event_snapshot_id: string | null;
+            /**
+             * Market Snapshot Id
+             * @default null
+             */
+            market_snapshot_id: string | null;
+            /**
+             * Evidence Snapshot Id
+             * @default null
+             */
+            evidence_snapshot_id: string | null;
+            /**
+             * Feature Snapshot Id
+             * @default null
+             */
+            feature_snapshot_id: string | null;
+        };
+        /** LegEstimate */
+        LegEstimate: {
+            /** Model Probability */
+            model_probability: number | string;
+            interval: components["schemas"]["UncertaintyInterval"];
+            /** Model Version */
+            model_version: string;
+            /**
+             * Snapshot Captured At Utc
+             * Format: date-time
+             */
+            snapshot_captured_at_utc: string;
+        };
+        /**
+         * Market
+         * @description Provider market identity. A different line is a different market.
+         */
+        Market: {
+            /** Provider */
+            provider: string;
+            /** Market Id */
+            market_id: string;
+            /** Event Id */
+            event_id: string;
+            /**
+             * @description None when the provider type has no normalized equivalent.
+             * @default null
+             */
+            market_type: components["schemas"]["MarketType"] | null;
+            /**
+             * Provider Market Type
+             * @default null
+             */
+            provider_market_type: string | null;
+            /**
+             * Line
+             * @default null
+             */
+            line: number | string | null;
+            /**
+             * Slug
+             * @default null
+             */
+            slug: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** MarketSideQuote */
+        MarketSideQuote: {
+            /** Side Id */
+            side_id: string;
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Is Long
+             * @default null
+             */
+            is_long: boolean | null;
+            /**
+             * Price Usd
+             * @description Per-share price in USD; None if unusable.
+             * @default null
+             */
+            price_usd: number | string | null;
+            /**
+             * Tradable
+             * @default null
+             */
+            tradable: boolean | null;
+        };
+        /**
+         * MarketSnapshot
+         * @description One observation of a market's tradable state. Unknowns stay None and add a warning.
+         */
+        MarketSnapshot: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id?: string;
+            /** Provider */
+            provider: string;
+            /** Market Id */
+            market_id: string;
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            /**
+             * Title
+             * @default null
+             */
+            title: string | null;
+            /** Is Open */
+            is_open: boolean;
+            /**
+             * Combo Enabled
+             * @default null
+             */
+            combo_enabled: boolean | null;
+            /**
+             * Best Bid Usd
+             * @default null
+             */
+            best_bid_usd: number | string | null;
+            /**
+             * Best Ask Usd
+             * @default null
+             */
+            best_ask_usd: number | string | null;
+            /**
+             * Fee Coefficient
+             * @default null
+             */
+            fee_coefficient: number | string | null;
+            /**
+             * Sides
+             * @default []
+             */
+            sides: components["schemas"]["MarketSideQuote"][];
+            /**
+             * Warnings
+             * @default []
+             */
+            warnings: string[];
+            source: components["schemas"]["SourceSnapshot"];
+        };
+        /**
+         * NaiveIndependentBaseline
+         * @description Product of leg probabilities. A comparison baseline only, never a recommendation input.
+         */
+        NaiveIndependentBaseline: {
+            /** Probability */
+            probability: number | string;
+            /**
+             * Label
+             * @default NAIVE_INDEPENDENT_BASELINE
+             * @constant
+             */
+            label: "NAIVE_INDEPENDENT_BASELINE";
+            /**
+             * Assumption
+             * @default treats legs as independent; wrong whenever legs share a dependency
+             */
+            assumption: string;
+        };
+        /** PositionCosts */
+        PositionCosts: {
+            /** Stake Usd */
+            stake_usd: number | string;
+            /** Gross Payout Usd */
+            gross_payout_usd: number | string;
+            /** Estimated Fees Usd */
+            estimated_fees_usd: number | string;
+            /** Estimated Slippage Usd */
+            estimated_slippage_usd: number | string;
+        };
+        /**
+         * ProviderErrorKind
+         * @enum {string}
+         */
+        ProviderErrorKind: "TIMEOUT" | "RATE_LIMITED" | "UNAVAILABLE" | "NOT_FOUND" | "BAD_REQUEST" | "SCHEMA";
+        /**
+         * ProviderFailure
+         * @description A provider that failed during collection; kept so partial failures stay visible.
+         */
+        ProviderFailure: {
+            /** Provider */
+            provider: string;
+            kind: components["schemas"]["ProviderErrorKind"];
+            /** Message */
+            message: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /**
+         * Recommendation
+         * @enum {string}
+         */
+        Recommendation: "CONSIDER" | "PASS" | "AVOID" | "INSUFFICIENT_DATA";
+        /** RecommendationResult */
+        RecommendationResult: {
+            recommendation: components["schemas"]["Recommendation"];
+            /**
+             * Reason
+             * @description One sentence.
+             */
+            reason: string;
+            /** @default null */
+            insufficient_data: components["schemas"]["InsufficientData"] | null;
+        };
+        /**
+         * SourceSnapshot
+         * @description Where a fact, quote, or event state came from and when it was retrieved.
+         */
+        SourceSnapshot: {
+            /**
+             * Provider
+             * @description Adapter that retrieved it.
+             */
+            provider: string;
+            /** Publisher */
+            publisher: string;
+            /** Url */
+            url: string;
+            /**
+             * Published At
+             * @description When the source says.
+             * @default null
+             */
+            published_at: string | null;
+            /**
+             * Retrieved At
+             * Format: date-time
+             */
+            retrieved_at: string;
+            /**
+             * Content Sha256
+             * @default null
+             */
+            content_sha256: string | null;
+        };
+        /** UncertaintyInterval */
+        UncertaintyInterval: {
+            /** Low */
+            low: number | string;
+            /** High */
+            high: number | string;
+        };
     };
     responses: never;
     parameters: never;
