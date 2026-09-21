@@ -11,7 +11,9 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.analysis import router as analysis_router
 from app.db import get_session
+from app.errors import ApiFailure, api_failure_handler
 from app.intake import intake_error
 from app.intake import router as intake_router
 from app.settings import get_settings
@@ -31,12 +33,14 @@ app = FastAPI(
     separate_input_output_schemas=False,
 )
 app.include_router(intake_router)
+app.include_router(analysis_router)
+app.add_exception_handler(ApiFailure, api_failure_handler)  # type: ignore[arg-type]
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, exc: RequestValidationError) -> Response:
     # Intake routes return the structured IntakeError envelope; others keep FastAPI's default.
-    if request.url.path.startswith(intake_router.prefix):
+    if request.url.path.startswith((intake_router.prefix, analysis_router.prefix)):
         return JSONResponse(intake_error(exc).model_dump(mode="json"), status_code=422)
     return await request_validation_exception_handler(request, exc)
 

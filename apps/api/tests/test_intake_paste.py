@@ -3,10 +3,12 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.db import get_session
 from app.intake import CatalogEvent, get_event_catalog, get_now
 from app.main import app
 
@@ -19,10 +21,15 @@ URL = "/api/v1/bet-slips/intake/paste"
 client = TestClient(app)
 
 
+async def catalog() -> list[CatalogEvent]:
+    return CATALOG
+
+
 @pytest.fixture(autouse=True)
 def fixtures() -> Iterator[None]:
     app.dependency_overrides[get_now] = lambda: NOW
-    app.dependency_overrides[get_event_catalog] = lambda: CATALOG
+    app.dependency_overrides[get_event_catalog] = lambda: catalog
+    app.dependency_overrides[get_session] = lambda: MagicMock()
     yield
     app.dependency_overrides.clear()
 
@@ -125,7 +132,10 @@ def test_separators_only_is_unparseable() -> None:
 
 
 def test_empty_catalog_never_resolves() -> None:
-    app.dependency_overrides.pop(get_event_catalog)
+    async def empty() -> list[CatalogEvent]:
+        return []
+
+    app.dependency_overrides[get_event_catalog] = lambda: empty
     assert codes(paste("Chiefs ML @ 0.56")) == ["EVENT_NOT_FOUND"]
 
 
