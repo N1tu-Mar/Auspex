@@ -2,8 +2,10 @@
 
 ## Objective
 
-Phase 1 market-intake API slice: manual and pasted pregame slips become editable, normalized
-results with explicit ambiguity/rejection states. Never guess events, participants, or settlement.
+Phase 1 market intake plus the first end-to-end analysis workflow: intake results are stored append-only
+and retrievable by trace ID; a RESOLVED slip is analyzed (research, features, estimate, correlation,
+recommendation policy) into an immutable stored `AnalysisRun`. Never guess events, participants,
+settlement, or probabilities.
 
 ## Owned paths
 
@@ -11,66 +13,99 @@ results with explicit ambiguity/rejection states. Never guess events, participan
 
 ## Current base commit
 
-`55611ba` (`main`). Branch `work/backend`, worktree `../auspex-backend`.
+`b2e05a6` (`main`, merged into `work/backend`). Branch `work/backend`, worktree `../auspex-backend`.
 
 ## Decisions made
 
-- Endpoints (in `apps/api/app/intake.py`, router included in `app/main.py`):
-  - `POST /api/v1/bet-slips/intake/manual`: body is the existing `BetSlip`; applies pregame intake rules.
-  - `POST /api/v1/bet-slips/intake/paste`: body `{text, stake_usd, gross_payout_usd?}`; parses legs
-    split on newline, `;`, or ` + `. Grammar: `Team ML @ 0.56`, `Team -3.5 @ 0.52`,
-    `Team A/Team B over 47.5 @ .51`. Anything else is `UNPARSEABLE_LEG` (e.g. player props: use manual).
-  - `POST /api/v1/bet-slips/validate` unchanged (still FastAPI default 422 shape).
-- Response `IntakeResult`: `trace_id`, `received_at_utc`, `source`, `state`, `original_input`,
-  editable `legs` (`LegDraft`, BetLeg fields all nullable + `raw_text`, `candidates`), `issues`
-  (`code`, `message`, `leg_index`, `field`), and `slip` (a `BetSlip`) only when `RESOLVED`.
-- States: `RESOLVED`; `NEEDS_RESOLUTION` (editable gaps: `EVENT_NOT_IDENTIFIED`, `EVENT_NOT_FOUND`,
-  `AMBIGUOUS_EVENT` with candidates, `MISSING_FIELD`, `SETTLEMENT_UNCONFIRMED`, `UNPARSEABLE_LEG`);
-  `REJECTED` (`UNSUPPORTED_STATUS` for LIVE/COMPLETED/POSTPONED/CANCELED/UNSUPPORTED,
-  `EVENT_STARTED`, `INVALID_SIDE`, `UNEXPECTED_LINE`, `MALFORMED_INPUT`). Rejection wins over resolution.
-- Missing `settlement_rule_ref` blocks resolution (settlement is never assumed).
-- Unreadable intake bodies return 422 `IntakeError` (`trace_id`, `code=MALFORMED_INPUT`, per-field issues).
-- Paste resolution uses an injectable `get_event_catalog` dependency (`list[CatalogEvent]`): exact,
-  case-insensitive match on full participant name or listed alias; a leg resolves only if exactly one
-  event matches (totals require both names in the same event). Production catalog is empty until a
-  provider exists, so pasted legs return `EVENT_NOT_FOUND` rather than a guess.
-- Clock is an injectable `get_now` dependency for deterministic tests.
-- No persistence in this slice (see requests).
+### Intake (unchanged rules; see git history for the grammar)
+
+- `POST /bet-slips/intake/manual` and `/paste` now insert one `intake_records` row per call (plus a
+  `bet_slips` row when RESOLVED) in one transaction. `IntakeResult.bet_slip_id` is set only when RESOLVED.
+  `trace_id` = `intake_records.id`. A DB failure returns 503 `PERSISTENCE_FAILED` and stores nothing.
+- `GET /bet-slips/intake/{trace_id}` returns the stored `IntakeResult` (editable legs, issues, slip).
+- Paste resolution is provider-backed: `get_event_catalog` loads open Polymarket US events for the next
+  14 days through the research `PolymarketUSClient` (bounded paging, error if the window exceeds 10 pages;
+  never silently truncates). Only NFL/MLB league slugs with exactly two teams and a start time are
+  resolvable. Matching is exact after `normalize_name` on team name, abbreviation, alias, safe name.
+- The provider does **not** say which team is home. So a provider-matched moneyline/spread leg stays
+  `NEEDS_RESOLUTION` (`MISSING_FIELD` on `side`), totals need home/away supplied, and the provider gives no
+  settlement rule ref (`SETTLEMENT_UNCONFIRMED`). The user completes the leg via manual intake. Fixture
+  catalogs (tests) may still carry home/away and rule refs and can reach RESOLVED.
+- Catalog fetch failure -> `CATALOG_UNAVAILABLE` per leg (not `EVENT_NOT_FOUND`), state NEEDS_RESOLUTION.
+- Structured errors for non-validation failures: `ApiError` (`trace_id`, `received_at_utc`, `code`,
+  `message`), codes `NOT_FOUND`, `INTAKE_NOT_RESOLVED`, `PERSISTENCE_FAILED`. Validation errors on
+  `/bet-slips/intake` and `/analyses` keep the `IntakeError` envelope.
+
+### Analysis workflow (`app/analysis.py`, `analysis_store.py`, `analysis_record.py`, `providers.py`)
+
+- `POST /api/v1/analyses` body `{intake_trace_id | bet_slip_id, estimated_fees_usd?, estimated_slippage_usd?}`
+  -> 201 `AnalysisRecord`: `analysis` (`AnalysisRun`), `events`, `markets`, `market_snapshots`,
+  `evidence_snapshots`, `feature_snapshots`, `provider_failures`. `GET /api/v1/analyses/{id}` returns the same
+  object rebuilt from rows (POST also returns the reloaded rows, so they are identical). 409 if the intake is
+  not RESOLVED; 404 for unknown ids. Re-analysis inserts a new run.
+- Per event: fetch each leg's market by `polymarket_market_id` and every injected evidence provider; failures
+  (provider errors, stale drops, market schema errors) are kept inside that event's evidence snapshot
+  through research `build_snapshot`. Freshness windows are explicit constants (`MAX_AGE`). No retry logic here:
+  the research `Fetcher` retries are bounded and every attempt is logged (`auspex.providers`).
+- Features: no extractor exists, so a `FeatureSnapshot` with `feature_set_version="unassembled-v0"` and no
+  features is stored per event; the sport adapter's coverage gate then abstains with named missing features.
+- Estimates: `estimate_leg` with an empty registry, so every leg is INSUFFICIENT_DATA today (no ACTIVE model
+  exists). Sports without an adapter (NCAAF, SOCCER) abstain with "no model coverage for X".
+- Combos (2+ legs): correlation warnings and a labeled naive baseline are stored; the baseline uses
+  market-implied probabilities when any leg lacks an estimate (stated in the reasons). Joint probability is
+  always INSUFFICIENT_DATA; a combo is therefore always INSUFFICIENT_DATA.
+- Recommendation: INSUFFICIENT_DATA (with reasons) when any leg lacks an estimate, a market is closed/of a
+  different type or line, the slip is a combo, or fees/slippage were not supplied (never assumed). Otherwise
+  the prediction `recommend` policy runs on a single-leg EV. Gross payout defaults to stake / price rounded
+  down to cents (contract precision) when the slip has none.
+- `code_version` = `AUSPEX_CODE_VERSION` env, else `git rev-parse HEAD`, else `unknown` (Dockerfile has a
+  build arg). `model_version` = comma-joined estimate versions, else `none`. `as_of_utc` = clock at start;
+  `created_at` after all retrievals.
+- Persistence is one transaction, insert-only: sources, events/markets (`ON CONFLICT DO NOTHING`), market
+  snapshots, evidence items/snapshots (content-addressed, idempotent), failures, feature snapshots, run, legs.
+  Failures are stored in the evidence snapshot's canonical order (provider, kind, message) so the content
+  hash re-validates on read.
 
 ## Contracts consumed or produced
 
-Consumed: `auspex_contracts.BetSlip`, `BetLeg`, enums, `MarketPriceUsd`, `PositiveUsd`.
-Produced (API-local, appear in OpenAPI): `IntakeResult`, `IntakeError`, `IntakeIssue`, `IntakeState`,
-`IssueCode`, `LegDraft`, `EventCandidate`, `PasteIntakeRequest`.
+Consumed: `auspex_contracts` `BetSlip`, `AnalysisRun`, `LegAnalysis`, `EvidenceSnapshot`, `FeatureSnapshot`,
+`Market`, `MarketSnapshot`, `Event`, `ProviderFailure`; research, prediction, and sports Python APIs.
+Produced (API-local): `IntakeResult` (+`bet_slip_id`), `IntakeIssue` (+`CATALOG_UNAVAILABLE`), `EventCandidate`
+(+`participants`, home/away optional), `AnalysisRequest`, `AnalysisRecord`, `ApiError`, `ErrorCode`.
+Generated OpenAPI/TS types are NOT regenerated here: see `requests/backend-to-foundation-analysis-contracts.md`.
 
 ## Commands and tests
 
-Run 2026-09-21 in `../auspex-backend`:
+Run 2026-09-21 in `../auspex-backend` (Postgres from `docker compose`, `DATABASE_URL` from `.env.example`):
 
-- `uv run pytest apps/api -m 'not db'` → 32 pass (new: `tests/test_intake_manual.py`, `tests/test_intake_paste.py`, fixture `tests/fixtures/intake_events.json`)
-- `pnpm lint` → pass; `pnpm typecheck` → pass (mypy strict); `pnpm test` → 41 pytest + Vitest pass
-- `pnpm contracts:check` → **fails (expected)**: OpenAPI drift from new routes; foundation must regenerate
-- `git diff --check` → clean
-- `pnpm test:db` not run (no DB changes in this slice)
+- `uv run pytest -q` -> 451 pass (apps/api: 62, incl. 21 db-marked); `uv run pytest apps/api -m 'not db'` -> 41 pass
+- `uv run mypy` (strict) -> clean; `pnpm lint` -> pass
+- `pnpm contracts:check` -> **fails**: `schema name collision with an API model: AnalysisRun` (foundation request)
+- New tests: `test_intake_provider.py` (fixture transport, outage, persistence calls), `test_analysis_policy.py`
+  (stubbed estimator: CONSIDER/AVOID/PASS/fees-missing), `test_analysis_workflow.py` (db: intake round trip,
+  409/404, insufficient data, POST==GET, re-run is a new run, partial provider failure, stale drop, market
+  outage, combo, unmodeled sport, market mismatch).
 
 ## Known issues
 
-- `pnpm check`/CI red on this branch until foundation regenerates contracts.
-- Intake results are not persisted; trace IDs exist only in responses.
-- No real event catalog; paste resolution only works with an injected catalog (tests use fixtures).
-- Manual intake trusts a supplied `event_id`; it is not verified against a provider.
-- Paste grammar is deliberately narrow: no player props, soccer draw, or American odds.
+- Contracts/generated types are stale until foundation serves the request; CI (`contracts:check`) red until then.
+- Every real analysis is INSUFFICIENT_DATA: no feature extractor, no ACTIVE model, no odds/stats/news providers.
+  The CONSIDER/AVOID/PASS path is tested only with a stubbed estimator.
+- Provider events give no home/away or settlement rule, so provider-backed paste never reaches RESOLVED alone.
+- Manual intake still trusts a supplied `event_id`; the analysis only cross-checks the market's type and line.
+- No `EventSnapshot`, `SourceRun` persistence, or consensus (de-vigged odds) probability.
+- `AUTH`/`STALE` failure kinds are remapped (request filed). DB tests commit rows (append-only; not deletable).
+- Analyses run inside a sync DB session in an async route; fine for single-user, revisit if concurrency grows.
 
 ## Integration order
 
-Merge `work/backend` into `main`, then foundation serves
-`requests/backend-intake-contracts-regen.md`; frontend consumes regenerated types afterwards.
+After foundation serves the contracts request; then frontend consumes regenerated types.
 
 ## Last completed commit
 
-See `git log work/backend` — implementation `bfda657`, requests `0790572`; this note lands in the next commit.
+See `git log work/backend`.
 
 ## Next smallest task
 
-Persist intake records once `requests/backend-intake-persistence.md` lands; wire catalog to the research
-stream's Polymarket US adapter when available.
+Feature extraction for one sport (owned by prediction/research), then a recorded provider capture so
+home/away and settlement refs can be confirmed.
