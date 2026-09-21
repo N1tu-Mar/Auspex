@@ -1,0 +1,54 @@
+[
+  {
+    "event_id": "fixture-kc-buf",
+    "sport": "NFL",
+    "league": "NFL",
+    "event_start_utc": "2026-10-05T00:25:00Z",
+    "home_participant": "Kansas City Chiefs",
+    "away_participant": "Buffalo Bills",
+    "aliases": { "Kansas City Chiefs": ["Chiefs", "KC"], "Buffalo Bills": ["Bills", "BUF"] },
+    "settlement_rule_refs": { "MONEYLINE": "fixture-nfl-ml", "TOTAL": "fixture-nfl-total" }
+  },
+  {
+    "event_id": "fixture-nyg-dal",
+    "sport": "NFL",
+    "league": "NFL",
+    "event_start_utc": "2026-10-04T17:00:00Z",
+    "home_participant": "New York Giants",
+    "away_participant": "Dallas Cowboys",
+    "aliases": { "New York Giants": ["Giants"], "Dallas Cowboys": ["Cowboys"] },
+    "settlement_rule_refs": { "MONEYLINE": "fixture-nfl-ml" }
+  },
+  {
+    "event_id": "fixture-sf-lad",
+    "sport": "MLB",
+    "league": "MLB",
+    "event_start_utc": "2026-10-02T02:10:00Z",
+    "home_participant": "San Francisco Giants",
+    "away_participant": "Los Angeles Dodgers",
+    "aliases": { "San Francisco Giants": ["Giants"], "Los Angeles Dodgers": ["Dodgers"] },
+    "settlement_rule_refs": { "MONEYLINE": "fixture-mlb-ml" }
+  },
+  {
+    "event_id": "fixture-nyy-bos-live",
+    "sport": "MLB",
+    "league": "MLB",
+    "event_start_utc": "2026-10-01T23:05:00Z",
+    "home_participant": "New York Yankees",
+    "away_participant": "Boston Red Sox",
+    "aliases": { "New York Yankees": ["Yankees"], "Boston Red Sox": ["Red Sox"] },
+    "status": "LIVE",
+    "settlement_rule_refs": { "MONEYLINE": "fixture-mlb-ml" }
+  },
+  {
+    "event_id": "fixture-sea-ari-completed",
+    "sport": "NFL",
+    "league": "NFL",
+    "event_start_utc": "2026-09-28T20:05:00Z",
+    "home_participant": "Seattle Seahawks",
+    "away_participant": "Arizona Cardinals",
+    "aliases": { "Seattle Seahawks": ["Seahawks"], "Arizona Cardinals": ["Cardinals"] },
+    "status": "COMPLETED",
+    "settlement_rule_refs": { "MONEYLINE": "fixture-nfl-ml" }
+  }
+]
