@@ -4,6 +4,8 @@
 
 Phase 0 vertical foundation: one command starts web/API/database and all baseline checks pass. **Status: complete and integrated into `main`.**
 
+Phase 1 follow-up (this branch): serve backend intake requests — regenerated contracts and migration `0002` (`intake_records`). **Status: ready to integrate.**
+
 ## Owned paths
 
 Root configuration (`package.json`, `pnpm-workspace.yaml`, `pyproject.toml`, `uv.lock`, `pnpm-lock.yaml`, `biome.json`, `playwright.config.ts`, `alembic.ini`, `.env.example`, `.dockerignore`, `.python-version`), `compose.yaml`, `apps/*/Dockerfile`, `infra/**`, `database/**`, `packages/contracts/**`, `scripts/**`, `.github/**`.
@@ -12,7 +14,7 @@ Starter code handed to other streams after integration: `apps/api/**` → backen
 
 ## Current base commit
 
-`c92a29b` (`main`).
+`55611ba` (`main`), plus merge of `work/backend` at `7b3e96b` (needed to regenerate contracts from its routes).
 
 ## Decisions made
 
@@ -21,11 +23,13 @@ Starter code handed to other streams after integration: `apps/api/**` → backen
 - **API:** `GET /api/health` (probes DB), `POST /api/v1/bet-slips/validate` (validate/normalize only, no persistence). Settings validated by pydantic-settings; startup fails without a `postgresql+psycopg://` `DATABASE_URL`.
 - **Database:** PostgreSQL 17, bound to `127.0.0.1` only. App uses non-superuser role `auspex_app` that owns the `auspex` database (created by `infra/postgres/init-app-role.sh`). Sessions pinned to UTC. Migration `0001` creates append-only `bet_slips` (uuid, `created_at timestamptz`, `original_input`, `slip jsonb`). The API container runs `alembic upgrade head` on start.
 - **Tooling:** Biome (TS/JSON format + lint), Ruff (Python format + lint), `tsc` and `mypy --strict`, Vitest + Testing Library, pytest, Playwright (Chromium, 1 worker). TypeScript pinned to 5.x because `openapi-typescript` requires the TS 5 JS API.
+- **Intake persistence (migration `0002`):** append-only `intake_records` — `id` (= response `trace_id`), `received_at timestamptz` (app-supplied, indexed), `source`, `state`, `original_input`, `result jsonb` (full `IntakeResult`), nullable FKs `bet_slip_id → bet_slips` and `supersedes_id → intake_records`. Check constraints: `source ∈ {manual, paste}`, `state ∈ {RESOLVED, NEEDS_RESOLUTION, REJECTED}`, `bet_slip_id` only when `RESOLVED`. Foundation added the matching `IntakeRecord` model in `apps/api/app/db.py` so `alembic check` stays green; backend owns it from here and wires persistence.
+- **Intake schemas stay API-local.** `IntakeResult`/`LegDraft`/`IssueCode` remain in `apps/api/app/intake.py` until a second consumer (research/prediction) needs them in Python; the web app already gets them via generated TS.
 - **Deferred to owning streams:** Tailwind, shadcn/ui, TanStack Query, React Hook Form, Zod (frontend); `httpx` provider clients (research); `bet_legs` table and further schema (request through foundation).
 
 ## Contracts consumed or produced
 
-Produced: `auspex_contracts` (Python), `openapi.json`, `@auspex/contracts` TS types, fixture `packages/contracts/fixtures/bet_slip.valid.json`, migration `0001`.
+Produced: `auspex_contracts` (Python), `openapi.json`, `@auspex/contracts` TS types (now including intake routes/schemas), fixture `packages/contracts/fixtures/bet_slip.valid.json`, migrations `0001`, `0002`.
 
 ## Commands and tests
 
@@ -39,6 +43,20 @@ Run on 2026-09-21, local (macOS, Docker via colima) and in a fresh clone:
 
 CI (`.github/workflows/ci.yml`) mirrors this: `checks` job runs `pnpm check`; `stack` job runs Compose, `pnpm test:db`, and Playwright. CI has not run on GitHub yet (no remote configured).
 
+Phase 1 follow-up, 2026-09-21 (worktree `../auspex-foundation`):
+
+- `pnpm contracts` then `pnpm contracts:check` → up to date
+- `pnpm check` → pass (41 pytest, 2 Vitest, mypy strict, Ruff, Biome, contract drift)
+- `pnpm test:db` → 8 pass (upgrade + `alembic check`, downgrade to `0001` and re-upgrade, intake FK/supersedes round-trip in UTC, 4 constraint rejections)
+- `git diff --check` → clean
+
+## Requests
+
+- `backend-intake-contracts-regen.md` — served (`3fdd051`).
+- `backend-intake-persistence.md` — served (`460146b`).
+- `research-tooling-registration.md`, `prediction-to-foundation-services-tooling-and-contract-fields.md` §1 — **not served on this branch.** Registering `services/{research,prediction,sports}` as uv workspace members requires those directories, which exist only on `work/research`/`work/prediction`. Serve right after those branches merge into `main` (root `pyproject.toml` members/sources/dev group, mypy `files`/`mypy_path`, pytest `testpaths`, isort `known-first-party`, `uv.lock`, `pnpm fmt`; plus `httpx` for research).
+- Prediction §2 (period/scope, player-prop stat type, venue/roof, promoting result dataclasses) — deferred; request marks it future and no consumer needs it yet.
+
 ## Known issues
 
 - Generated TS types for `Decimal` fields are `number | string`; the API returns decimal strings. Clients should treat money/prices as strings and never do money math in JS floats.
@@ -46,16 +64,18 @@ CI (`.github/workflows/ci.yml`) mirrors this: `checks` job runs `pnpm check`; `s
 - The web container runs the Vite dev server (no hot reload from host; rebuild with `docker compose up --build`). Use `pnpm --filter web dev` on the host for iteration.
 - With colima, the repo must live under `$HOME` for the database init-script bind mount to work.
 - Local setup required installing Homebrew `docker-compose` and adding `cliPluginsExtraDirs` to `~/.docker/config.json` (backup at `~/.docker/config.json.bak`).
+- `intake_records` append-only is by convention (no UPDATE/DELETE trigger), same as `bet_slips`.
+- `test:db` reuses the shared `auspex` Compose volume; the downgrade test drops and recreates `intake_records` rows.
 - Starlette/anyio emit a `BlockingPortal` deprecation warning under `TestClient`; filtered in pytest config.
 
 ## Integration order
 
-Foundation is integrated. Create backend, research, and prediction worktrees from `main` per `docs/agent-workflow.md`.
+Merge `work/foundation` into `main` (it carries `work/backend` through `7b3e96b`). Backend then merges `main`, and persists intake through `IntakeRecord`. Research and prediction merge next, then foundation serves the tooling requests.
 
 ## Last completed commit
 
-`3decd0a` (implementation). This note is committed in the following docs commit on `work/foundation`.
+`460146b` (migration `0002`). This note is committed in the following docs commit on `work/foundation`.
 
 ## Next smallest task
 
-Serve schema requests from backend (likely `bet_legs` columns or persistence endpoint support) via `docs/workstreams/requests/`.
+Register `services/research`, `services/prediction`, `services/sports` in root tooling once they are on `main`.
