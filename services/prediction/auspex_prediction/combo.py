@@ -7,7 +7,6 @@ from decimal import Decimal
 from enum import StrEnum
 
 from auspex_contracts import BetLeg
-
 from auspex_prediction.core import ONE, InsufficientData, pregame_blockers, require_probability
 from auspex_prediction.correlation import CorrelationWarning, detect_correlation_warnings
 
@@ -48,7 +47,9 @@ def assess_combo(
     """
     if len(legs) != len(leg_probabilities):
         raise ValueError("legs and leg_probabilities must have equal length")
-    blockers = [f"leg {i}: {r}" for i, leg in enumerate(legs) for r in pregame_blockers(leg, as_of_utc)]
+    blockers = [
+        f"leg {i}: {r}" for i, leg in enumerate(legs) for r in pregame_blockers(leg, as_of_utc)
+    ]
     if blockers:
         return InsufficientData(tuple(blockers))
     warnings = tuple(detect_correlation_warnings(legs))

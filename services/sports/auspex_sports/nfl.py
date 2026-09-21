@@ -4,7 +4,6 @@ from datetime import timedelta
 from decimal import Decimal
 
 from auspex_contracts import MarketType, Side, Sport
-
 from auspex_sports.adapter import CoverageBoundary, CoverageBoundedAdapter, MarketRule
 
 _TEAM_FEATURES = (

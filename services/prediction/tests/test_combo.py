@@ -3,8 +3,6 @@ from decimal import Decimal as D
 from typing import Any
 
 import pytest
-from auspex_contracts import BetLeg, LegStatus, MarketType, Side, Sport
-
 from auspex_prediction.combo import (
     ComboAssessment,
     ComboSettlement,
@@ -16,6 +14,8 @@ from auspex_prediction.combo import (
 )
 from auspex_prediction.core import InsufficientData, pregame_blockers
 from auspex_prediction.correlation import DependencyKind, detect_correlation_warnings
+
+from auspex_contracts import BetLeg, LegStatus, MarketType, Side, Sport
 
 NOW = datetime(2026, 9, 21, 12, tzinfo=UTC)
 KICKOFF = NOW + timedelta(hours=5)
@@ -37,9 +37,7 @@ def leg(**kw: Any) -> BetLeg:
 
 
 def other_game(**kw: Any) -> BetLeg:
-    return leg(
-        event_id="g2", home_participant="Eagles", away_participant="Cowboys", **kw
-    )
+    return leg(event_id="g2", home_participant="Eagles", away_participant="Cowboys", **kw)
 
 
 def kinds(legs: list[BetLeg]) -> set[DependencyKind]:

@@ -57,7 +57,9 @@ def devig_proportional(implied_probabilities: Mapping[str, Decimal]) -> DevigRes
     }
     total = sum(raw.values(), Decimal(0))
     if total < ONE:
-        raise ValueError(f"raw implied probabilities sum to {total} < 1; quotes stale or mismatched")
+        raise ValueError(
+            f"raw implied probabilities sum to {total} < 1; quotes stale or mismatched"
+        )
     return DevigResult({k: v / total for k, v in raw.items()}, overround=total - ONE)
 
 

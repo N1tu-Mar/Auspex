@@ -71,7 +71,9 @@ def pregame_blockers(leg: BetLeg, as_of_utc: datetime) -> list[str]:
     """
     require_aware("as_of_utc", as_of_utc)
     if leg.status is not LegStatus.PREGAME:
-        return [f"leg status {leg.status.value} is not PREGAME; settlement rule decides its outcome"]
+        return [
+            f"leg status {leg.status.value} is not PREGAME; settlement rule decides its outcome"
+        ]
     if leg.event_start_utc <= as_of_utc:
         return ["event has started or start time has passed; pregame estimate not valid"]
     return []

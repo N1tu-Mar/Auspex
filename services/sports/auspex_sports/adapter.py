@@ -16,13 +16,14 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Protocol
 
-from auspex_contracts import BetLeg, MarketType, Side, Sport
 from auspex_prediction.core import (
     InsufficientData,
     pregame_blockers,
     require_aware,
     require_probability,
 )
+
+from auspex_contracts import BetLeg, MarketType, Side, Sport
 
 
 @dataclass(frozen=True)
@@ -82,7 +83,9 @@ class LegEstimate:
         for name in ("model_probability", "probability_low", "probability_high"):
             require_probability(name, getattr(self, name))
         if not self.probability_low <= self.model_probability <= self.probability_high:
-            raise ValueError("model_probability must lie within [probability_low, probability_high]")
+            raise ValueError(
+                "model_probability must lie within [probability_low, probability_high]"
+            )
         if not self.model_version:
             raise ValueError("model_version is required")
         require_aware("snapshot_captured_at_utc", self.snapshot_captured_at_utc)

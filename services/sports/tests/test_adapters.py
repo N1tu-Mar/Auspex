@@ -3,9 +3,7 @@ from decimal import Decimal as D
 from typing import Any
 
 import pytest
-from auspex_contracts import BetLeg, LegStatus, MarketType, Side, Sport
 from auspex_prediction.core import InsufficientData
-
 from auspex_sports.adapter import (
     CoverageBoundedAdapter,
     FeatureObservation,
@@ -15,6 +13,8 @@ from auspex_sports.adapter import (
 )
 from auspex_sports.mlb import MLB_ADAPTER, MLB_COVERAGE
 from auspex_sports.nfl import NFL_ADAPTER, NFL_COVERAGE
+
+from auspex_contracts import BetLeg, LegStatus, MarketType, Side, Sport
 
 NOW = datetime(2026, 9, 21, 12, tzinfo=UTC)
 START = NOW + timedelta(hours=4)
@@ -166,7 +166,9 @@ def test_estimate_is_insufficient_without_coverage() -> None:
     assert r.reasons == ("no feature snapshot",)
 
 
-@pytest.mark.parametrize(("adapter", "features"), [(NFL_ADAPTER, NFL_FEATURES), (MLB_ADAPTER, MLB_FEATURES)])
+@pytest.mark.parametrize(
+    ("adapter", "features"), [(NFL_ADAPTER, NFL_FEATURES), (MLB_ADAPTER, MLB_FEATURES)]
+)
 def test_estimate_is_insufficient_without_model(
     adapter: CoverageBoundedAdapter, features: tuple[str, ...]
 ) -> None:
