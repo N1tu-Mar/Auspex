@@ -10,7 +10,6 @@ from auspex_sports.adapter import (
     CoverageBoundedAdapter,
     FeatureObservation,
     FeatureSnapshot,
-    LegEstimate,
     SportAdapter,
 )
 from auspex_sports.mlb import MLB_ADAPTER, MLB_COVERAGE
@@ -41,8 +40,11 @@ def mlb_leg(**kw: Any) -> BetLeg:
 
 
 def snapshot(names: tuple[str, ...], age: timedelta = timedelta(hours=1)) -> FeatureSnapshot:
-    obs = FeatureObservation("known", NOW - age, "evidence:1")
-    return FeatureSnapshot(NOW, {n: obs for n in names})
+    def obs(n: str) -> FeatureObservation:
+        value = D("1.0") if n == "park_factor" else "known"
+        return FeatureObservation(value, NOW - age, "evidence:1")
+
+    return FeatureSnapshot(NOW, {n: obs(n) for n in names})
 
 
 NFL_FEATURES = NFL_COVERAGE.markets[MarketType.MONEYLINE].required_features
@@ -185,16 +187,18 @@ def test_settlement_requirements() -> None:
     assert NFL_ADAPTER.settlement_requirements(prop) == ()
 
 
-def test_leg_estimate_validation() -> None:
-    ok = LegEstimate(D("0.5"), D("0.4"), D("0.6"), "v1", NOW)
-    assert ok.model_probability == D("0.5")
-    with pytest.raises(ValueError, match="within"):
-        LegEstimate(D("0.7"), D("0.4"), D("0.6"), "v1", NOW)
-    with pytest.raises(ValueError):
-        LegEstimate(D("0.5"), D("-0.1"), D("0.6"), "v1", NOW)
-    with pytest.raises(ValueError, match="model_version"):
-        LegEstimate(D("0.5"), D("0.4"), D("0.6"), "", NOW)
-    with pytest.raises(TypeError):
-        LegEstimate(0.5, D("0.4"), D("0.6"), "v1", NOW)  # type: ignore[arg-type]
-    with pytest.raises(ValueError, match="aware"):
-        LegEstimate(D("0.5"), D("0.4"), D("0.6"), "v1", datetime(2026, 1, 1))  # noqa: DTZ001
+def test_typed_feature_gates() -> None:
+    snap = snapshot(MLB_FEATURES)
+    bad = {
+        "park_factor": FeatureObservation(D("9"), NOW, "evidence:1"),
+        "weather_forecast": FeatureObservation("  ", NOW, "evidence:1"),
+    }
+    out = reasons(MLB_ADAPTER, mlb_leg(), FeatureSnapshot(NOW, {**snap.features, **bad}))
+    assert "park_factor 9 above maximum" in out
+    assert "weather_forecast must be non-empty text" in out
+    no_src = {"weather_forecast": FeatureObservation("clear", NOW, "")}
+    out = reasons(MLB_ADAPTER, mlb_leg(), FeatureSnapshot(NOW, {**snap.features, **no_src}))
+    assert "no source_ref" in out
+    wrong = {"park_factor": FeatureObservation("1.0", NOW, "evidence:1")}
+    out = reasons(MLB_ADAPTER, mlb_leg(), FeatureSnapshot(NOW, {**snap.features, **wrong}))
+    assert "park_factor must be a finite Decimal" in out

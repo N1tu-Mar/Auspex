@@ -19,6 +19,7 @@ NFL_COVERAGE = CoverageBoundary(
     sport=Sport.NFL,
     leagues=frozenset({"NFL"}),
     max_feature_age=timedelta(hours=12),
+    feature_specs={},  # all features are non-empty text
     markets={
         MarketType.MONEYLINE: MarketRule(
             sides=frozenset({Side.HOME, Side.AWAY}),
