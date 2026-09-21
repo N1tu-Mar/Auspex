@@ -1,6 +1,6 @@
 import asyncio
-from datetime import UTC, datetime, timedelta
-from typing import Any
+from datetime import UTC, datetime, timedelta, timezone
+from typing import Any, Final
 
 import pytest
 from auspex_research.errors import ProviderError, ProviderErrorKind
@@ -8,11 +8,15 @@ from auspex_research.evidence import ClaimKind, EvidenceCategory, EvidenceItem, 
 from auspex_research.fixtures import FixtureTransport
 from auspex_research.providers import (
     CachePolicy,
+    EventRef,
+    NewsProvider,
     ProviderResponse,
     SourceIdentity,
     build_snapshot,
 )
 from auspex_research.transport import RawResponse, RetryPolicy, Transport, fetch_json
+
+from auspex_contracts import Sport
 
 SOURCE = SourceIdentity(provider="fixture", publisher="Fixture", base_url="https://api.test")
 URL = "https://api.test/v1/thing"
@@ -151,3 +155,28 @@ def test_build_snapshot_keeps_evidence_when_a_provider_fails() -> None:
     assert [(f.provider, f.kind) for f in snap.failures] == [
         ("fixture_news", ProviderErrorKind.TIMEOUT)
     ]
+
+
+class FixtureNewsProvider:
+    source = SOURCE
+    cache_policy = CachePolicy(ttl_seconds=300)
+    category: Final = EvidenceCategory.NEWS
+
+    def __init__(self, items: tuple[EvidenceItem, ...]) -> None:
+        self.items = items
+
+    async def fetch_evidence(self, event: EventRef) -> ProviderResponse[tuple[EvidenceItem, ...]]:
+        return ProviderResponse(source=SOURCE, url=URL, retrieved_at=NOW, data=self.items)
+
+
+def test_evidence_providers_are_distinguished_by_category() -> None:
+    news: NewsProvider = FixtureNewsProvider(())  # mypy rejects this for any other category
+    event = EventRef(
+        event_id="evt-1",
+        sport=Sport.NFL,
+        league="NFL",
+        event_start_utc=datetime(2026, 9, 27, 16, 25, tzinfo=timezone(timedelta(hours=-4))),
+    )
+    assert event.event_start_utc == datetime(2026, 9, 27, 20, 25, tzinfo=UTC)
+    assert asyncio.run(news.fetch_evidence(event)).data == ()
+    assert news.category is EvidenceCategory.NEWS
