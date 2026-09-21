@@ -1,10 +1,19 @@
 [tool.uv.workspace]
-members = ["apps/api", "packages/contracts"]
+members = [
+    "apps/api",
+    "packages/contracts",
+    "services/prediction",
+    "services/research",
+    "services/sports",
+]
 
 [dependency-groups]
 dev = [
     "auspex-api",
     "auspex-contracts",
+    "auspex-prediction",
+    "auspex-research",
+    "auspex-sports",
     "httpx2>=2.13",
     "mypy>=1.13",
     "pytest>=8.3",
@@ -14,6 +23,9 @@ dev = [
 [tool.uv.sources]
 auspex-api = { workspace = true }
 auspex-contracts = { workspace = true }
+auspex-prediction = { workspace = true }
+auspex-research = { workspace = true }
+auspex-sports = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -25,17 +37,36 @@ select = ["E", "F", "I", "B", "UP", "S", "DTZ", "RUF"]
 ignore = ["S101"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app", "auspex_contracts"]
+known-first-party = [
+    "app",
+    "auspex_contracts",
+    "auspex_prediction",
+    "auspex_research",
+    "auspex_sports",
+]
 
 [tool.mypy]
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["apps/api", "packages/contracts", "database/migrations"]
-mypy_path = "apps/api:packages/contracts"
+files = [
+    "apps/api",
+    "packages/contracts",
+    "database/migrations",
+    "services/prediction",
+    "services/research",
+    "services/sports",
+]
+mypy_path = "apps/api:packages/contracts:services/prediction:services/research:services/sports"
 explicit_package_bases = true
 
 [tool.pytest.ini_options]
-testpaths = ["apps/api/tests", "packages/contracts/tests"]
+testpaths = [
+    "apps/api/tests",
+    "packages/contracts/tests",
+    "services/prediction/tests",
+    "services/research/tests",
+    "services/sports/tests",
+]
 markers = ["db: requires a running PostgreSQL (pnpm test:db)"]
 addopts = "--import-mode=importlib"
 filterwarnings = ["ignore::DeprecationWarning:starlette.testclient"]
