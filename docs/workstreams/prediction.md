@@ -79,7 +79,7 @@ After foundation and backend; alongside research; before frontend. No migrations
 
 ## Last completed commit
 
-Implementation: `629e244`. Docs: `cb4a561`, plus the follow-up commit that records these SHAs, on `work/prediction`.
+Implementation: `629e244`; model-readiness layer: `d520d86` on `work/prediction`.
 
 ## Next smallest task
 
