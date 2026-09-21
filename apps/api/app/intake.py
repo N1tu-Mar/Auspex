@@ -5,6 +5,7 @@ and settlement detail is explicit; otherwise it is returned editable with issues
 Nothing here is persisted yet (see docs/workstreams/requests/backend-intake-persistence.md).
 """
 
+import re
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -13,9 +14,10 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
 from fastapi.exceptions import RequestValidationError
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 from auspex_contracts import BetLeg, BetSlip, LegStatus, MarketType, Side, Sport
+from auspex_contracts.bet_slip import MarketPriceUsd, PositiveUsd
 
 
 class IntakeState(StrEnum):
@@ -226,3 +228,161 @@ def intake_error(exc: RequestValidationError) -> IntakeError:
         message="Request body is malformed.",
         issues=issues,
     )
+
+
+class CatalogEvent(_Model):
+    """Known event used to resolve pasted participant names. Supplied by a provider later."""
+
+    event_id: str
+    sport: Sport
+    league: str
+    event_start_utc: AwareDatetime
+    home_participant: str
+    away_participant: str
+    aliases: dict[str, list[str]] = Field(
+        default_factory=dict, description="Participant name -> accepted short names."
+    )
+    status: LegStatus = LegStatus.PREGAME
+    settlement_rule_refs: dict[MarketType, str] = Field(default_factory=dict)
+
+    def side_of(self, name: str) -> Side | None:
+        key = name.casefold()
+        for participant, side in (
+            (self.home_participant, Side.HOME),
+            (self.away_participant, Side.AWAY),
+        ):
+            names = [participant, *self.aliases.get(participant, [])]
+            if key in (n.casefold() for n in names):
+                return side
+        return None
+
+    def candidate(self) -> EventCandidate:
+        return EventCandidate.model_validate(
+            self.model_dump(include=set(EventCandidate.model_fields))
+        )
+
+
+def get_event_catalog() -> list[CatalogEvent]:
+    # No market-data provider is integrated yet, so pasted legs stay unresolved in production.
+    return []
+
+
+class PasteIntakeRequest(_Model):
+    text: str = Field(min_length=1, max_length=2000, description="Verbatim pasted slip text.")
+    stake_usd: PositiveUsd
+    gross_payout_usd: PositiveUsd | None = None
+
+
+LEG_SPLIT = re.compile(r"\s*(?:\n|;|\s\+\s)\s*")
+PRICE = re.compile(r"\s*@\s*(?P<price>\S+)$")
+TOTAL = re.compile(
+    r"^(?P<a>.+?)\s*/\s*(?P<b>.+?)\s+(?P<side>over|under|o|u)\s*(?P<line>\d+(?:\.\d+)?)$", re.I
+)
+MONEYLINE = re.compile(r"^(?P<team>.+?)\s+(?:ml|moneyline)$", re.I)
+SPREAD = re.compile(r"^(?P<team>.+?)\s+(?P<line>[+-]\d+(?:\.\d+)?)$")
+
+
+PRICE_ADAPTER: TypeAdapter[Decimal] = TypeAdapter(MarketPriceUsd)
+
+
+def resolve_leg(
+    index: int, raw: str, catalog: list[CatalogEvent], now: datetime
+) -> tuple[LegDraft, list[IntakeIssue], BetLeg | None]:
+    """Parse one pasted leg and resolve it against the catalog, or explain why not."""
+    draft = LegDraft(index=index, state=IntakeState.NEEDS_RESOLUTION, raw_text=raw)
+
+    def fail(
+        code: IssueCode, message: str, field: str | None = None
+    ) -> tuple[LegDraft, list[IntakeIssue], None]:
+        issues = [IntakeIssue(code=code, message=message, leg_index=index, field=field)]
+        return draft.model_copy(update={"state": state_of(issues)}), issues, None
+
+    body, price = raw, None
+    if match := PRICE.search(raw):
+        body = raw[: match.start()]
+        try:
+            price = PRICE_ADAPTER.validate_python(match["price"])
+        except ValidationError:
+            return fail(
+                IssueCode.MALFORMED_INPUT, "Price must be in (0, 1) USD.", "market_price_usd"
+            )
+
+    names: list[str]
+    if match := TOTAL.match(body):
+        names = [match["a"], match["b"]]
+        market, line = MarketType.TOTAL, Decimal(match["line"])
+        side: Side | None = Side.OVER if match["side"].lower().startswith("o") else Side.UNDER
+    elif match := MONEYLINE.match(body):
+        names, market, line, side = [match["team"]], MarketType.MONEYLINE, None, None
+    elif match := SPREAD.match(body):
+        names, market, line, side = [match["team"]], MarketType.SPREAD, Decimal(match["line"]), None
+    else:
+        return fail(
+            IssueCode.UNPARSEABLE_LEG,
+            "Use 'Team ML', 'Team -3.5', or 'Team A/Team B over 47.5', each with '@ price'.",
+        )
+    draft = draft.model_copy(
+        update={"market_type": market, "line": line, "side": side, "market_price_usd": price}
+    )
+
+    matches = [event for event in catalog if all(event.side_of(name) for name in names)]
+    if not matches:
+        return fail(IssueCode.EVENT_NOT_FOUND, f"No known event matches {' / '.join(names)}.")
+    if len(matches) > 1:
+        draft = draft.model_copy(update={"candidates": [event.candidate() for event in matches]})
+        return fail(
+            IssueCode.AMBIGUOUS_EVENT, f"{len(matches)} events match; choose one.", "event_id"
+        )
+    event = matches[0]
+    if side is None:
+        side = event.side_of(names[0])
+    draft = draft.model_copy(
+        update={
+            **event.candidate().model_dump(),
+            "side": side,
+            "status": event.status,
+            "settlement_rule_ref": event.settlement_rule_refs.get(market),
+        }
+    )
+    if price is None:
+        return fail(
+            IssueCode.MISSING_FIELD, "Quoted price is required ('@ 0.55').", "market_price_usd"
+        )
+
+    leg = BetLeg(
+        **draft.model_dump(
+            exclude={"index", "state", "raw_text", "candidates", "market_price_usd"},
+            exclude_none=True,
+        ),
+        market_price_usd=price,
+    )
+    issues = check_leg(index, leg, now)
+    return draft.model_copy(update={"state": state_of(issues)}), issues, leg
+
+
+Catalog = Annotated[list[CatalogEvent], Depends(get_event_catalog)]
+
+
+@router.post("/paste")
+def intake_paste(request: PasteIntakeRequest, catalog: Catalog, now: Now) -> IntakeResult:
+    """Parse pasted slip text into editable legs; resolve only exact, unique matches."""
+    issues: list[IntakeIssue] = []
+    drafts: list[LegDraft] = []
+    legs: list[BetLeg] = []
+    for index, raw in enumerate(part for part in LEG_SPLIT.split(request.text.strip()) if part):
+        draft, leg_issues, leg = resolve_leg(index, raw, catalog, now)
+        drafts.append(draft)
+        issues += leg_issues
+        if leg is not None:
+            legs.append(leg)
+    if not drafts:
+        issues.append(IntakeIssue(code=IssueCode.UNPARSEABLE_LEG, message="No legs found."))
+    slip = None
+    if not issues:
+        slip = BetSlip(
+            original_input=request.text,
+            legs=legs,
+            stake_usd=request.stake_usd,
+            gross_payout_usd=request.gross_payout_usd,
+        )
+    return build_result("paste", request.text, drafts, issues, slip, now)
