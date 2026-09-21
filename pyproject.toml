@@ -52,6 +52,7 @@ files = [
     "apps/api",
     "packages/contracts",
     "database/migrations",
+    "database/tests",
     "services/prediction",
     "services/research",
     "services/sports",
@@ -62,6 +63,7 @@ explicit_package_bases = true
 [tool.pytest.ini_options]
 testpaths = [
     "apps/api/tests",
+    "database/tests",
     "packages/contracts/tests",
     "services/prediction/tests",
     "services/research/tests",

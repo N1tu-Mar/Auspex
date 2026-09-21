@@ -1,5 +1,6 @@
 from alembic import context
 
+import app.analysis_models  # noqa: F401  (registers tables on Base.metadata)
 from app.db import Base, get_engine
 
 target_metadata = Base.metadata
