@@ -2,7 +2,7 @@
 
 ## Objective
 
-Phase 3 deterministic prediction foundation: typed, unit-tested pricing/EV/de-vig/combo primitives, a transparent correlation-warning framework, and the `SportAdapter` contract with narrow NFL/MLB pregame coverage. No API endpoints, provider retrieval, persistence, UI, or LLM math.
+Phase 3 deterministic prediction foundation: typed, unit-tested pricing/EV/de-vig/combo primitives, a transparent correlation-warning framework, and the `SportAdapter` contract with narrow NFL/MLB pregame coverage. Phase 4 model-readiness layer: typed feature gates, model registry, estimate orchestration, uncertainty/confidence, recommendation policy, and evaluation primitives. No API endpoints, provider retrieval, persistence, UI, or LLM math.
 
 ## Owned paths
 
@@ -28,10 +28,20 @@ Phase 3 deterministic prediction foundation: typed, unit-tested pricing/EV/de-vi
   - **MLB** (league `MLB`): moneyline, ±1.5 run line, and total in 0.5 steps. Confirmed starters and lineups are required, and features must be ≤6h old.
   - Player props and partial-game markets are excluded for both.
 
+### Model-readiness layer
+
+- **Feature gates** (`adapter.py`): `FeatureSpec` (TEXT non-empty, or DECIMAL with bounds) per `CoverageBoundary.feature_specs`; every required feature must also carry a `source_ref`. MLB `park_factor` is a Decimal ratio in [0.5, 1.5]; all other features are non-empty text. Bounds are a sanity gate, not a domain claim.
+- **Registry** (`registry.py`): `ModelMetadata` (version, code version, sport/leagues/markets coverage, model-specific max interval width, `TrainingProvenance`, `ModelStatus`, `EvaluationArtifact`). `ACTIVE` is only constructible with an artifact matching model and code version that beats its baseline on an adequate sample. Versions are immutable; one ACTIVE model per league/market. Metadata only: predictor code is bound separately in `EstimationContext`.
+- **Orchestration** (`services/sports/.../estimator.py`, `estimate_leg`): coverage gate, ACTIVE model lookup, predictor bound, interval validation, abstention on width (model limit and global limit), then `LegEstimate` carrying model id/version, code version, evaluation artifact id, snapshot time, `as_of_utc`, and both confidence tiers. No registered model exists, so every real leg is still `INSUFFICIENT_DATA`. `CoverageBoundedAdapter.estimate_leg` is unchanged and still always abstains.
+- **Two confidences** (`uncertainty.py`): evidence confidence (freshness fraction and distinct sources) is independent of prediction confidence (interval width, capped at LOW without an adequate validated sample).
+- **Malformed model output** (interval with point outside [low, high], out of [0, 1], float) raises `ValueError`; a valid but too-wide interval abstains.
+- **Policy** (`policy.py`): precedence INSUFFICIENT_DATA (no estimate, no or future market time, unknown dependency), AVOID (stale market, `SAME_MARKET`, point edge ≤ -0.05), PASS (any other correlation warning, since magnitude is unquantified; conservative edge < 0.02; confidence below minimums), else CONSIDER. Conservative edge = interval low bound − break-even. Boundaries are inclusive.
+- **Evaluation** (`evaluation.py`): Brier, log loss (probabilities clipped to [1e-15, 1−1e-15]; `Decimal.ln`), ROI, calibration bins (bins under 30 samples suppress the observed frequency), sample-size warnings (default minimum 300), baseline comparison (`beats_baseline = None` under the minimum), and `EvaluationArtifact`. No artifact exists, so no model can be active or called calibrated.
+
 ## Contracts consumed or produced
 
 - **Consumed:** `auspex_contracts.BetLeg`, `LegStatus`, `MarketType`, `Side`, `Sport`, `Recommendation`. Shared contracts are unchanged.
-- **Produced** (internal Python only, not yet in OpenAPI): `InsufficientData`, `PositionCosts`, `ExpectedValue`, `DevigResult`, `BookQuote`, `ConsensusResult`, `NaiveIndependentBaseline`, `ComboAssessment`, `CorrelationWarning`, `LegResult`, `VoidPolicy`, `ComboSettlement`, `SportAdapter`, `CoverageBoundary`, `MarketRule`, `CoverageResult`, `FeatureSnapshot`, `FeatureObservation`, `LegEstimate`.
+- **Produced** (internal Python only, not yet in OpenAPI): `InsufficientData`, `PositionCosts`, `ExpectedValue`, `DevigResult`, `BookQuote`, `ConsensusResult`, `NaiveIndependentBaseline`, `ComboAssessment`, `CorrelationWarning`, `LegResult`, `VoidPolicy`, `ComboSettlement`, `SportAdapter`, `CoverageBoundary`, `MarketRule`, `CoverageResult`, `FeatureSnapshot`, `FeatureObservation`, `LegEstimate` (now with provenance and both confidence tiers), plus `ProbabilityInterval`, `ConfidenceTier`, `UncertaintyPolicy`, `ModelMetadata`, `ModelRegistry`, `ModelStatus`, `EvaluationArtifact`, `BaselineComparison`, `CalibrationBin`, `PolicyConfig`, `PolicyDecision`, `EstimationContext`, `Predictor`. Promotion request: `requests/prediction-to-foundation-estimate-contracts.md`.
 
 ## Commands and tests
 
@@ -47,8 +57,8 @@ git diff --check
 
 Results:
 
-- pytest: 135 pass.
-- mypy `--strict`: clean (15 files).
+- pytest: 182 pass.
+- mypy `--strict`: clean (25 files).
 - ruff: clean.
 - `pnpm check`: pass (the existing 14 pytest + 2 Vitest, and no contract drift). Root pytest and mypy do not include `services/**` yet; see the request.
 
@@ -57,7 +67,9 @@ Results:
 - Root uv workspace, pytest, and mypy config do not include `services/**` yet (foundation request filed), so `pnpm check` does not run these tests.
 - The binary-share payout, fee, and void semantics are assumptions until confirmed against Polymarket US rules.
 - The contract has no period, prop stat type, or venue/roof fields. MLB full-game scope relies on `settlement_rule_ref`, and weather correlation is only flagged for legs in the same game.
-- There is no probability model, no correlation-aware joint probability, and no uncertainty interval yet; every leg estimate is `INSUFFICIENT_DATA`.
+- There is no probability model, evaluation artifact, or correlation-aware joint probability; every leg estimate is `INSUFFICIENT_DATA`.
+- Policy, uncertainty, and evaluation thresholds are conservative defaults, not calibrated; they need product sign-off.
+- Correlation-aware combo recommendations are not implemented; the policy treats any non-`SAME_MARKET` warning as PASS.
 - Participant matching is a normalized string match. It does not resolve entities, so aliases such as "KC" and "Chiefs" won't match.
 - Result types are internal dataclasses. Backend needs Pydantic contracts to serialize them.
 
@@ -71,4 +83,4 @@ Implementation: `629e244`. Docs: `cb4a561`, plus the follow-up commit that recor
 
 ## Next smallest task
 
-After foundation wires `services/**` into root tooling, add a transparent market-baseline estimator (de-vigged consensus → `LegEstimate` with an explicit interval) behind the NFL moneyline coverage gate.
+Add a transparent market-baseline estimator (de-vigged consensus → `LegEstimate` with an explicit interval) behind the NFL moneyline coverage gate.

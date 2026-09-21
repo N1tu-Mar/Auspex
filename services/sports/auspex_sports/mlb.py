@@ -8,7 +8,13 @@ from datetime import timedelta
 from decimal import Decimal
 
 from auspex_contracts import MarketType, Side, Sport
-from auspex_sports.adapter import CoverageBoundary, CoverageBoundedAdapter, MarketRule
+from auspex_sports.adapter import (
+    CoverageBoundary,
+    CoverageBoundedAdapter,
+    FeatureKind,
+    FeatureSpec,
+    MarketRule,
+)
 
 _GAME_FEATURES = (
     "home_confirmed_starting_pitcher",
@@ -25,6 +31,11 @@ MLB_COVERAGE = CoverageBoundary(
     sport=Sport.MLB,
     leagues=frozenset({"MLB"}),
     max_feature_age=timedelta(hours=6),
+    feature_specs={
+        "park_factor": FeatureSpec(
+            FeatureKind.DECIMAL, minimum=Decimal("0.5"), maximum=Decimal("1.5")
+        )
+    },  # ratio to league average
     markets={
         MarketType.MONEYLINE: MarketRule(
             sides=frozenset({Side.HOME, Side.AWAY}),

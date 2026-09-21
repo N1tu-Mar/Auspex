@@ -14,6 +14,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
+from enum import StrEnum
+from types import MappingProxyType
 from typing import Protocol
 
 from auspex_contracts import BetLeg, MarketType, Side, Sport
@@ -23,6 +25,7 @@ from auspex_prediction.core import (
     require_aware,
     require_probability,
 )
+from auspex_prediction.uncertainty import ConfidenceTier
 
 
 @dataclass(frozen=True)
@@ -36,6 +39,18 @@ class FeatureObservation:
 class FeatureSnapshot:
     captured_at_utc: datetime
     features: Mapping[str, FeatureObservation]
+
+
+class FeatureKind(StrEnum):
+    TEXT = "TEXT"  # non-empty string
+    DECIMAL = "DECIMAL"  # Decimal within [minimum, maximum]
+
+
+@dataclass(frozen=True)
+class FeatureSpec:
+    kind: FeatureKind = FeatureKind.TEXT
+    minimum: Decimal | None = None
+    maximum: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -55,6 +70,7 @@ class CoverageBoundary:
     leagues: frozenset[str]
     markets: Mapping[MarketType, MarketRule]
     max_feature_age: timedelta
+    feature_specs: Mapping[str, FeatureSpec]  # unlisted features default to non-empty TEXT
     exclusions: tuple[str, ...]  # documented out-of-scope markets, shown to the user
 
 
@@ -72,11 +88,19 @@ class CoverageResult:
 
 @dataclass(frozen=True)
 class LegEstimate:
+    """A model estimate with full provenance. Only produced from an ACTIVE, evaluated model."""
+
     model_probability: Decimal
     probability_low: Decimal
     probability_high: Decimal
+    model_id: str
     model_version: str
+    code_version: str
+    evaluation_artifact_id: str
     snapshot_captured_at_utc: datetime
+    as_of_utc: datetime
+    evidence_confidence: ConfidenceTier  # completeness/freshness/corroboration of inputs
+    prediction_confidence: ConfidenceTier  # tightness/validation of the model output
 
     def __post_init__(self) -> None:
         for name in ("model_probability", "probability_low", "probability_high"):
@@ -85,9 +109,11 @@ class LegEstimate:
             raise ValueError(
                 "model_probability must lie within [probability_low, probability_high]"
             )
-        if not self.model_version:
-            raise ValueError("model_version is required")
+        for name in ("model_id", "model_version", "code_version", "evaluation_artifact_id"):
+            if not getattr(self, name):
+                raise ValueError(f"{name} is required")
         require_aware("snapshot_captured_at_utc", self.snapshot_captured_at_utc)
+        require_aware("as_of_utc", self.as_of_utc)
 
 
 class SportAdapter(Protocol):
@@ -123,11 +149,26 @@ def _line_reasons(leg: BetLeg, rule: MarketRule) -> list[str]:
     return []
 
 
+def _value_reasons(name: str, value: str | Decimal, spec: FeatureSpec) -> list[str]:
+    if spec.kind is FeatureKind.TEXT:
+        if not isinstance(value, str) or not value.strip():
+            return [f"feature {name} must be non-empty text"]
+        return []
+    if not isinstance(value, Decimal) or not value.is_finite():
+        return [f"feature {name} must be a finite Decimal"]
+    if spec.minimum is not None and value < spec.minimum:
+        return [f"feature {name} {value} below minimum {spec.minimum}"]
+    if spec.maximum is not None and value > spec.maximum:
+        return [f"feature {name} {value} above maximum {spec.maximum}"]
+    return []
+
+
 def _feature_reasons(
     snapshot: FeatureSnapshot | None,
     required: tuple[str, ...],
     as_of_utc: datetime,
     max_age: timedelta,
+    specs: Mapping[str, FeatureSpec] = MappingProxyType({}),
 ) -> list[str]:
     if snapshot is None:
         return ["no feature snapshot"] if required else []
@@ -137,6 +178,9 @@ def _feature_reasons(
         if obs is None or obs.value is None:
             out.append(f"missing feature {name}")
             continue
+        if not obs.source_ref:
+            out.append(f"feature {name} has no source_ref")
+        out += _value_reasons(name, obs.value, specs.get(name, FeatureSpec()))
         age = as_of_utc - require_aware(f"{name}.observed_at_utc", obs.observed_at_utc)
         if age < timedelta(0):
             out.append(f"feature {name} observed after as_of_utc")
@@ -174,7 +218,9 @@ class CoverageBoundedAdapter:
         reasons += _line_reasons(leg, rule)
         if not leg.settlement_rule_ref:
             reasons.append("settlement rule not confirmed (settlement_rule_ref missing)")
-        reasons += _feature_reasons(snapshot, rule.required_features, as_of_utc, b.max_feature_age)
+        reasons += _feature_reasons(
+            snapshot, rule.required_features, as_of_utc, b.max_feature_age, b.feature_specs
+        )
         return CoverageResult(tuple(reasons))
 
     def estimate_leg(
