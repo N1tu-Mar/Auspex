@@ -167,7 +167,8 @@ function ResolvedSlip({ slip }: { slip: NonNullable<IntakeResult["slip"]> }) {
           </thead>
           <tbody>
             {slip.legs.map((leg, index) => (
-              <tr key={`${leg.event_id}-${index}`} className="border-t border-rule align-top">
+              // biome-ignore lint/suspicious/noArrayIndexKey: read-only rows, never reordered.
+              <tr key={index} className="border-t border-rule align-top">
                 <td className="py-1.5 pr-2">
                   <span className="block">
                     {leg.player_id ?? `${leg.away_participant} at ${leg.home_participant}`}
