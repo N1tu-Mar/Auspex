@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 
-// ponytail: two routes on the History API; adopt a router library when routes need params.
-export type Path = "/" | "/analysis";
+// ponytail: History API routes; one optional `?id=` on /analysis. Adopt a router library if
+// more params appear.
+export type Path = "/" | "/analysis" | `/analysis?id=${string}`;
 
 export function navigate(path: Path, state: unknown = null) {
   history.pushState(state, "", path);
@@ -9,7 +10,8 @@ export function navigate(path: Path, state: unknown = null) {
 }
 
 const read = () => ({
-  path: (location.pathname === "/analysis" ? "/analysis" : "/") as Path,
+  path: (location.pathname === "/analysis" ? "/analysis" : "/") as "/" | "/analysis",
+  analysisId: new URLSearchParams(location.search).get("id") ?? undefined,
   state: history.state as unknown,
 });
 

@@ -417,8 +417,8 @@ function Candidates({
     set("sport", c.sport);
     set("league", c.league);
     set("event_start_local", toLocalInput(c.event_start_utc));
-    set("home_participant", c.home_participant);
-    set("away_participant", c.away_participant);
+    set("home_participant", c.home_participant ?? "");
+    set("away_participant", c.away_participant ?? "");
   };
   return (
     <fieldset className="mb-3 rounded-sm border border-warn/40 bg-warn/5 p-3">

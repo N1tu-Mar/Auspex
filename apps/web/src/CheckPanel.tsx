@@ -38,6 +38,8 @@ export const RECOVERY: Record<Schemas["IssueCode"], string> = {
   EVENT_NOT_IDENTIFIED: "Enter the Polymarket US event ID.",
   EVENT_NOT_FOUND:
     "No live event catalog is connected yet, so events are not matched automatically. Enter sport, league, start, participants, and event ID by hand.",
+  CATALOG_UNAVAILABLE:
+    "The event catalog could not be reached, so no match was attempted. Check again shortly, or enter the event details by hand.",
   AMBIGUOUS_EVENT: "Choose the intended event from the list. Auspex will not pick one for you.",
   SETTLEMENT_UNCONFIRMED: "Enter the settlement rule reference from the market's rules.",
   UNSUPPORTED_STATUS:
