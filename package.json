@@ -1,0 +1,25 @@
+{
+  "name": "auspex",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "fmt": "biome check --write . && uv run ruff check --fix && uv run ruff format",
+    "lint": "biome check . && uv run ruff check && uv run ruff format --check",
+    "typecheck": "pnpm -r typecheck && uv run mypy",
+    "test": "pnpm -r test && uv run pytest -m 'not db'",
+    "test:db": "uv run pytest -m db",
+    "test:e2e": "playwright test",
+    "contracts": "scripts/contracts.sh",
+    "contracts:check": "scripts/contracts.sh --check",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm contracts:check"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
+    "@playwright/test": "^1.63.0",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -38,3 +38,4 @@ explicit_package_bases = true
 testpaths = ["apps/api/tests", "packages/contracts/tests"]
 markers = ["db: requires a running PostgreSQL (pnpm test:db)"]
 addopts = "--import-mode=importlib"
+filterwarnings = ["ignore::DeprecationWarning:starlette.testclient"]

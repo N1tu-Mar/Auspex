@@ -1,0 +1,11 @@
+{
+  "name": "@auspex/contracts",
+  "private": true,
+  "description": "Generated TypeScript types. Source: auspex_contracts (Pydantic) via OpenAPI.",
+  "types": "./generated/api.d.ts",
+  "exports": {
+    ".": {
+      "types": "./generated/api.d.ts"
+    }
+  }
+}
