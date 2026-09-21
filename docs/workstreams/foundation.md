@@ -4,7 +4,7 @@
 
 Phase 0 vertical foundation: one command starts web/API/database and all baseline checks pass. **Status: complete and integrated into `main`.**
 
-Phase 1 follow-up (this branch): serve backend intake requests — regenerated contracts and migration `0002` (`intake_records`). **Status: ready to integrate.**
+Phase 1 follow-up (this branch): serve backend intake requests — regenerated contracts and migration `0002` (`intake_records`) — and register research/prediction/sports services in root tooling. **Status: ready to integrate.**
 
 ## Owned paths
 
@@ -14,7 +14,7 @@ Starter code handed to other streams after integration: `apps/api/**` → backen
 
 ## Current base commit
 
-`55611ba` (`main`), plus merge of `work/backend` at `7b3e96b` (needed to regenerate contracts from its routes).
+`55611ba` (`main`), plus merges of `work/backend` at `7b3e96b` (needed to regenerate contracts from its routes), `work/research` at `3601575`, and `work/prediction` at `70c560b` (needed so their service directories exist as workspace members).
 
 ## Decisions made
 
@@ -46,15 +46,17 @@ CI (`.github/workflows/ci.yml`) mirrors this: `checks` job runs `pnpm check`; `s
 Phase 1 follow-up, 2026-09-21 (worktree `../auspex-foundation`):
 
 - `pnpm contracts` then `pnpm contracts:check` → up to date
-- `pnpm check` → pass (41 pytest, 2 Vitest, mypy strict, Ruff, Biome, contract drift)
+- `pnpm check` → pass (221 pytest across api/contracts/prediction/research/sports, 2 Vitest, mypy strict on 42 files, Ruff, Biome, contract drift)
 - `pnpm test:db` → 8 pass (upgrade + `alembic check`, downgrade to `0001` and re-upgrade, intake FK/supersedes round-trip in UTC, 4 constraint rejections)
 - `git diff --check` → clean
+- The research, prediction, and sports services are covered by the same `pnpm check`; `pnpm test:db` still 8 pass after registration.
 
 ## Requests
 
 - `backend-intake-contracts-regen.md` — served (`3fdd051`).
 - `backend-intake-persistence.md` — served (`460146b`).
-- `research-tooling-registration.md`, `prediction-to-foundation-services-tooling-and-contract-fields.md` §1 — **not served on this branch.** Registering `services/{research,prediction,sports}` as uv workspace members requires those directories, which exist only on `work/research`/`work/prediction`. Serve right after those branches merge into `main` (root `pyproject.toml` members/sources/dev group, mypy `files`/`mypy_path`, pytest `testpaths`, isort `known-first-party`, `uv.lock`, `pnpm fmt`; plus `httpx` for research).
+- `research-tooling-registration.md` — served (`485dc33`, imports re-sorted in `ecb5546`). Added `services/research/pyproject.toml` (`auspex-research`: `auspex-contracts`, `httpx>=0.28`, `pydantic>=2.9`). Research should now delete the `services/research/conftest.py` `sys.path` shim.
+- `prediction-to-foundation-services-tooling-and-contract-fields.md` §1 — served (same commits). Explicit `PYTHONPATH`/`MYPYPATH` invocations are no longer needed.
 - Prediction §2 (period/scope, player-prop stat type, venue/roof, promoting result dataclasses) — deferred; request marks it future and no consumer needs it yet.
 
 ## Known issues
@@ -70,12 +72,12 @@ Phase 1 follow-up, 2026-09-21 (worktree `../auspex-foundation`):
 
 ## Integration order
 
-Merge `work/foundation` into `main` (it carries `work/backend` through `7b3e96b`). Backend then merges `main`, and persists intake through `IntakeRecord`. Research and prediction merge next, then foundation serves the tooling requests.
+Merge `work/foundation` into `main` (it carries `work/backend`, `work/research`, and `work/prediction` at the SHAs above). Each stream then merges `main`: backend persists intake through `IntakeRecord`; research drops its conftest shim.
 
 ## Last completed commit
 
-`460146b` (migration `0002`). This note is committed in the following docs commit on `work/foundation`.
+`ecb5546` (tooling registration + import re-sort). This note is committed in the following docs commit on `work/foundation`.
 
 ## Next smallest task
 
-Register `services/research`, `services/prediction`, `services/sports` in root tooling once they are on `main`.
+Serve prediction §2 contract fields (period/scope, player-prop stat type, venue/roof) when the first real model needs them.
