@@ -88,7 +88,13 @@ def test_rate_limit_with_excessive_retry_after_fails_fast() -> None:
     ("response", "kind"),
     [
         (RawResponse(404, b""), ProviderErrorKind.NOT_FOUND),
-        (RawResponse(403, b""), ProviderErrorKind.BAD_REQUEST),
+        (RawResponse(403, b""), ProviderErrorKind.AUTH),
+        (RawResponse(401, b""), ProviderErrorKind.AUTH),
+        (RawResponse(400, b""), ProviderErrorKind.BAD_REQUEST),
+        (
+            RawResponse(302, b"", {"location": "https://elsewhere.test"}),
+            ProviderErrorKind.BAD_REQUEST,
+        ),
         (RawResponse(200, b"<html>"), ProviderErrorKind.SCHEMA),
         (RawResponse(200, b"[" + b"1," * 1_000_000 + b"1]"), ProviderErrorKind.SCHEMA),
     ],
@@ -150,7 +156,9 @@ def test_build_snapshot_keeps_evidence_when_a_provider_fails() -> None:
     )
     ok = ProviderResponse(source=SOURCE, url=URL, retrieved_at=NOW, data=(evidence, evidence))
     failed = ProviderError(ProviderErrorKind.TIMEOUT, "fixture_news", "no response in 5.0s")
-    snap = build_snapshot("evt-1", [ok, failed], NOW)
+    snap = build_snapshot(
+        "evt-1", [ok, failed], NOW, max_age={EvidenceCategory.WEATHER: timedelta(hours=1)}
+    )
     assert snap.items == (evidence,)  # duplicate report collapsed
     assert [(f.provider, f.kind) for f in snap.failures] == [
         ("fixture_news", ProviderErrorKind.TIMEOUT)

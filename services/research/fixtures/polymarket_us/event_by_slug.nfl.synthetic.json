@@ -1,0 +1,12 @@
+{
+  "event": {
+    "id": "9001",
+    "slug": "nfl-kc-buf-2026-09-27",
+    "title": "Chiefs vs. Bills",
+    "startTime": "2026-09-27T20:25:00Z",
+    "active": true,
+    "closed": false,
+    "teams": [{ "id": 12, "name": "Kansas City Chiefs" }, { "id": 4, "name": "Buffalo Bills" }],
+    "markets": []
+  }
+}

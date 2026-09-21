@@ -5,3 +5,7 @@ Synthetic (`*.synthetic.json`), not recorded: shaped on the documented
 (https://docs.polymarket.us/api-reference/markets/get-market-by-slug, read 2026-09-21).
 Ids, teams, and prices are invented. Replace with recorded, redacted responses once a
 read-only capture is approved; keep the synthetic ones for edge cases.
+
+Files named `bad.*` are deliberately malformed upstream responses for failure-path tests.
+`events.*`, `event_by_slug.*`, and `settlement.*` follow the documented events and settlement
+endpoints (docs.polymarket.us/api-reference, read 2026-09-21). All synthetic; none recorded.

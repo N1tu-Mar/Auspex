@@ -1,0 +1,63 @@
+{
+  "events": [
+    {
+      "id": "9001",
+      "slug": "nfl-kc-buf-2026-09-27",
+      "title": "Chiefs vs. Bills",
+      "description": "Synthetic rules text: resolves per the official final score.",
+      "resolutionSource": "Synthetic: league official box score",
+      "startDate": "2026-09-20T12:00:00Z",
+      "startTime": "2026-09-27T20:25:00Z",
+      "active": true,
+      "closed": false,
+      "archived": false,
+      "live": false,
+      "ended": false,
+      "markets": [
+        {
+          "id": "1001",
+          "slug": "nfl-kc-buf-2026-09-27",
+          "sportsMarketTypeV2": "MONEYLINE",
+          "tags": [{ "id": "1", "league": { "slug": "nfl" }, "sport": { "slug": "football" } }]
+        },
+        { "id": "1002", "slug": "nfl-kc-buf-2026-09-27-prop", "sportsMarketTypeV2": "PROP" }
+      ],
+      "teams": [
+        { "id": 12, "name": "Kansas City Chiefs", "abbreviation": "KC", "alias": "Chiefs" },
+        { "id": 4, "name": "Buffalo Bills", "abbreviation": "BUF", "alias": "Bills" }
+      ]
+    },
+    {
+      "id": "9002",
+      "slug": "nfl-kc-buf-2026-09-27-late",
+      "title": "Chiefs vs. Bills (rescheduled)",
+      "startTime": "2026-09-27T23:30:00Z",
+      "active": true,
+      "closed": false,
+      "markets": [],
+      "teams": [
+        { "id": 12, "name": "Kansas City Chiefs", "abbreviation": "KC", "alias": "Chiefs" },
+        { "id": 4, "name": "Buffalo Bills", "abbreviation": "BUF", "alias": "Bills" }
+      ]
+    },
+    {
+      "id": "9003",
+      "slug": "nfl-mia-nyj-2026-09-28",
+      "title": "Dolphins vs. Jets",
+      "startTime": "2026-09-28T17:00:00Z",
+      "active": true,
+      "teams": [
+        { "id": 20, "name": "Miami Dolphins", "abbreviation": "MIA" },
+        { "id": 21, "name": "New York Jets", "abbreviation": "NYJ" }
+      ]
+    },
+    {
+      "id": "9004",
+      "slug": "nfl-no-start",
+      "title": "No start time",
+      "active": true,
+      "teams": [{ "id": 12, "name": "Kansas City Chiefs" }, { "id": 4, "name": "Buffalo Bills" }]
+    },
+    { "id": "9005", "slug": "nfl-malformed", "startTime": "not-a-date", "teams": [] }
+  ]
+}

@@ -12,90 +12,102 @@ No API endpoints, prediction formulas, scraping, browser automation, or live-pro
 
 ## Current base commit
 
-`55611ba` (`main`). Branch `work/research`, worktree `../auspex-research`.
+`267557e` (`main`, merged into `work/research`). Branch `work/research`, worktree `../auspex-research`.
 
 ## Decisions made
 
-- **Package** `services/research/auspex_research`:
-  - `errors.py` — `ProviderError` with `ProviderErrorKind` (`TIMEOUT`, `RATE_LIMITED`,
-    `UNAVAILABLE`, `NOT_FOUND`, `BAD_REQUEST`, `SCHEMA`), `retryable`, `attempts`,
-    `retry_after_s`, `status_code`. Messages carry no URLs, headers, or secrets.
-  - `transport.py` — `Transport` Protocol (GET only; read-only by construction), `RetryPolicy`
-    (5 s per-attempt `asyncio.timeout`, max 3 attempts, full-jitter exponential backoff capped at
-    4 s; bounds enforced), 429 handling that honours numeric `Retry-After` and fails fast above
-    30 s, 2 MB body cap, JSON decode. Clock, sleep, and jitter are injectable.
-  - `providers.py` — `SourceIdentity`, `CachePolicy` + `ResponseCache` Protocol,
-    `ProviderResponse[T]` (source, URL, UTC retrieval time, attempts, cache flag),
-    `validate_payload`, `EventRef`, `OddsObservation` (`decimal_price`, never bare `odds`),
-    `NormalizedMarket`/`MarketSideQuote`, and Protocols `PolymarketProvider`, `OddsProvider`,
-    `StatsProvider`, `NewsProvider`, `WeatherProvider`, `InjuryProvider`, `LineupProvider`
-    (the last five share `EvidenceProvider`, distinguished by a `Literal` category that mypy
-    enforces). `build_snapshot` merges results, collapses identical reports, and records
-    failures instead of dropping them.
-  - `evidence.py` — frozen, `extra="forbid"` `SourceSnapshot` (URL, publisher, optional
-    publication time, retrieval time, optional content hash), `EvidenceItem`, `ProviderFailure`,
-    `EvidenceSnapshot`. `ClaimKind` = `CONFIRMED_FACT | PROJECTION | RUMOR | OPINION |
-    INFERENCE`; an `INFERENCE` must cite `derived_from` evidence in the same snapshot and no other
-    kind may. Excerpts ≤ 300 chars, facts ≤ 500. All times UTC-normalized and must be aware.
-    `evidence_id`/`snapshot_id` are SHA-256 of content: re-validating stored JSON detects edits.
-  - `polymarket.py` — `PolymarketUSClient` over `GET https://gateway.polymarket.us/v1/market/slug/{slug}`
-    (public, unauthenticated, 20 req/s per docs). Slug allowlist regex blocks path injection
-    before any request. `normalize_market` is pure: MONEYLINE/SPREAD/TOTAL map to contract
-    `MarketType`; PROP/FUTURE/DRAWABLE_OUTCOME stay `None` with a warning; naive
-    `gameStartTime`, out-of-range prices, and non-USD quotes become `None` with a warning,
-    never guessed. Upstream extra fields are ignored; changes to used fields raise `SCHEMA`.
-  - `fixtures.py` — `FixtureTransport` (ordered per-URL responses, 404 for unknown, records
-    calls) and `json_fixture`.
-- **No HTTP library dependency yet.** Root dev deps contain `httpx2`, not the prescribed
-  `httpx`, and research may not edit root tooling. A live `Transport` is deferred (request filed).
-- Uses `auspex_contracts` enums (`Sport`, `MarketType`, `Side`) read-only.
+- **Package** `services/research/auspex_research` (provider-neutral; backend calls `PolymarketUSClient`
+  and `build_snapshot`; nothing here imports API or DB code):
+  - `errors.py` — `ProviderError` + `ProviderErrorKind` (`TIMEOUT`, `RATE_LIMITED`, `UNAVAILABLE`,
+    `NOT_FOUND`, `AUTH`, `BAD_REQUEST`, `SCHEMA`, `STALE`). Messages carry no URLs/headers/secrets.
+  - `transport.py` — `Transport` Protocol (GET only), `RetryPolicy` (bounded: 1-5 attempts, 30 s cap),
+    and `Fetcher`: per-attempt `asyncio.timeout`, full-jitter exponential backoff, `Retry-After`
+    (seconds or HTTP-date, on 429 and 503; fails fast above 30 s), 2 MB body cap, redirects are errors,
+    optional `asyncio.Semaphore` for bounded concurrency, optional TTL cache, and a `RequestEvent`
+    sink (provider, redacted URL, attempt, outcome, status, kind, elapsed_ms, retry delay). URLs are
+    built with sorted params (`build_url`) so a request has one stable cache key; `redact_url`
+    strips userinfo/fragments and masks credential-looking query values in logs and provenance.
+  - `httpx_transport.py` — live `HttpxTransport` (httpx, `follow_redirects=False`, connect/read/write/pool
+    timeouts, streamed body cut at the cap, httpx errors mapped to `TimeoutError`/`OSError` carrying only
+    the exception type). Tested with `httpx.MockTransport`; no test uses a network.
+  - `settings.py` — `load_settings(environ)` reads `AUSPEX_RESEARCH_*` (`POLYMARKET_US_BASE_URL` https-only, no
+    credentials/query; `CONNECT_TIMEOUT_S`, `READ_TIMEOUT_S`, `MAX_ATTEMPTS`, `MAX_CONCURRENCY`,
+    `CACHE_MAX_ENTRIES`). Unknown `AUSPEX_RESEARCH_*` names and bad values fail with variable names only.
+    No secret is needed for the public endpoints, so none is read; a keyed provider must add `SecretStr`.
+  - `cache.py` — `TTLCache`: explicit TTL per `set`, key = provider + full URL, bounded, expired entries
+    evicted on read. **Caches decoded raw JSON, not normalized output** (normalization is pure and cheap;
+    this avoids serving old-shape data after a normalizer change). Only successes are cached; a hit keeps the
+    original `retrieved_at` and reports `from_cache=True, attempts=0`; a failed refresh raises, never falls
+    back to expired data. TTLs: market 15 s, catalog 300 s, settlement 60 s.
+  - `catalog.py` — provider-neutral `CatalogEvent`/`CatalogTeam`/`CatalogMarketRef`, `CatalogPage` (names rows
+    skipped as malformed), `EventQuery`, `resolve_event`. Matching is exact after `normalize_name`
+    (casefold, accent/punctuation strip) against team name/abbreviation/alias/safeName; no fuzzy or substring
+    matching. Result is `MATCHED` (exactly one), `AMBIGUOUS` (2+, sorted by start then id), or `NO_MATCH`.
+    With a query start time, events lacking a start are excluded and the count is reported.
+  - `polymarket.py` — read-only `PolymarketUSClient(Fetcher)` over documented public GETs only:
+    `/v1/market/slug/{slug}`, `/v1/market/id/{id}`, `/v1/markets/{slug}/settlement`,
+    `/v1/events/slug/{slug}`, `/v1/events` (window on `startTimeMin/Max`, `active=true&closed=false`, page <= 100).
+    Slugs/ids/page bounds validated before any request. Settlement returns the upstream number as-is; a 404 is
+    reported as "not found or not settled (upstream does not say)". Rules are exposed only as verbatim
+    `description`/`rulesDisclaimer` (markets) and `description`/`resolutionSource` (events), never parsed.
+    Market type reads V2 enum first, older `sportsMarketType` only if V2 is absent; only
+    MONEYLINE/SPREAD/TOTAL map to contract `MarketType`. Event `startTime` is the only start used
+    (`startDate`/`eventDate` are never substituted). League/sport come from market tags only when unanimous.
+  - `evidence.py` / `providers.py` — snapshot assembly: `build_snapshot(..., max_age={category: timedelta})`
+    requires an explicit window for every category present (no silent default). Older evidence (by
+    `published_at`, else `retrieved_at`) is dropped and recorded as a `STALE` `ProviderFailure`; provider
+    failures are kept; each successful call is a `SourceRun` (provider, redacted URL, retrieved_at, from_cache,
+    attempts, item_count) even if it returned nothing; duplicates (same category + claim kind + normalized
+    fact) collapse to the earliest report and inferences citing a collapsed item are re-pointed to the survivor.
+    Snapshots stay frozen and content-hashed.
+- Contracts: consumes `auspex_contracts` `MarketType`/`Side`/`Sport` read-only; no shared-contract, endpoint,
+  migration, or frontend changes. `conftest.py` sys.path shim removed (foundation registered the package).
 
 ## Contracts consumed or produced
 
 - Consumed: `auspex_contracts.MarketType`, `Side`, `Sport`.
-- Produced (Python, internal to research until backend adopts them): `NormalizedMarket`,
-  `EvidenceItem`, `EvidenceSnapshot`, `ProviderFailure`, `OddsObservation`, provider Protocols.
-- No shared-contract, generated-type, or migration changes.
+- Produced (Python, internal until backend adopts): `NormalizedMarket` (+ verbatim `description`,
+  `rules_disclaimer`), `MarketSettlement`, `CatalogEvent`, `CatalogPage`, `EventResolution`,
+  `EvidenceSnapshot` (+ `runs`), `ProviderFailure`, `Fetcher`, `HttpxTransport`, `ResearchSettings`.
+  Breaking vs. the previous note: `PolymarketUSClient` now takes a `Fetcher`; `ResponseCache.set` takes a TTL;
+  `build_snapshot` requires `max_age`.
 
 ## Commands and tests
 
-Run on 2026-09-21 from the worktree root (research is not yet in root tooling, so paths are
-explicit):
+Run 2026-09-21 in the worktree root:
 
-- `uv run pytest services/research -q` → 45 passed
-- `MYPYPATH=services/research uv run mypy services/research` → strict, no issues (11 files)
-- `uv run ruff check services/research && uv run ruff format --check services/research` → pass
-- `pnpm exec biome check services/research` → pass (fixture JSON)
-- `pnpm check` → pass (unchanged baseline: Biome, Ruff, tsc, mypy, 14 pytest, contract drift)
-- Negative check: a `WeatherProvider`-category class assigned to `NewsProvider` fails mypy.
-- `git diff --check` → clean
+- `uv run pytest services/research -q` -> 124 passed (deterministic fixtures / `MockTransport` only)
+- `uv run mypy` -> strict, no issues (51 files); `uv run ruff check` / `ruff format --check` -> pass
+- `pnpm exec biome check services/research` -> pass; `pnpm check` -> pass (300 pytest, contracts up to date)
+- `git diff --check` -> clean
+- Covered: timeout, retry + jitter bounds, 429 + `Retry-After` (seconds/date/past/junk/excessive), 503 `Retry-After`,
+  redirects, 401/403/4xx kinds, oversize/non-JSON/malformed bodies (market, settlement, catalog envelope, bad row),
+  cache hit/expiry-boundary/eviction/no-stale-on-failed-refresh/no-error-caching, redaction, concurrency bound,
+  env validation, ambiguous/no-match catalog resolution, stale/duplicate/partial-failure snapshots.
 
 ## Known issues
 
-- Not wired into `pnpm check`/CI until foundation lands
-  `requests/research-tooling-registration.md`; `services/research/conftest.py` holds a
-  `sys.path` shim until then. Ruff sorts `auspex_research` as third-party for the same reason.
-- No live transport: the adapter runs only on fixtures. No live call has been made.
-- Polymarket fixtures are **synthetic**, shaped from the documented schema, not recorded.
-  Payout/price semantics of `marketSides[].price` vs `quote.value` are unconfirmed against
-  settlement docs; prediction must not assume payout semantics from these fields yet.
-- Only get-market-by-slug is implemented (no by-id, events, BBO, book, or settlement endpoints).
-- Cache is interface-only (`CachePolicy`, `ResponseCache`); no store implementation.
-- Rate limiting is reactive (429 + `Retry-After`); no client-side token bucket.
-- Odds, stats, news, weather, injury, and lineup providers are Protocols only; no vendor chosen.
-  HTML sanitization and dedupe beyond identical content belong to the future news adapter.
+- Fixtures are **synthetic**, shaped from docs.polymarket.us (read 2026-09-21); none is a recorded response. No
+  live call has been made. Event/list field names come from the docs page; real payloads may differ (e.g. whether
+  `teams[].alias` carries nicknames), which changes how often pasted names resolve, not correctness.
+- `marketSides[].price` vs `quote.value` payout semantics remain unconfirmed; prediction must not assume them.
+  Settlement `settlement` is an unexplained number here (no scale/side semantics inferred).
+- Catalog resolution needs parsed participants; extracting them from pasted text/URLs is the backend intake's job.
+  Sports-API endpoints (leagues, teams, per-league events) are not used; list filtering is by start window and `tagSlug`.
+- Rate limiting is a concurrency bound plus reactive 429 handling; no token bucket against the documented 20 req/s.
+- No cache single-flight: concurrent identical misses each fetch. Cache is in-process only.
+- Odds, stats, news, weather, injury, and lineup providers are still Protocols only.
 
 ## Integration order
 
-After foundation and backend. No migrations. Merge `work/research` into `main` once foundation's
-tooling request is handled (or as-is; nothing outside `services/research` depends on it yet).
+After foundation and backend. No migrations. Backend builds one `Fetcher` (shared `TTLCache` and
+`Semaphore`) inside an `HttpxTransport.from_settings(...)` context and injects `PolymarketUSClient`.
 
 ## Last completed commit
 
-`8b778bf` (implementation). This note and the request are committed in the following docs commit
-on `work/research`.
+See `git log work/research` (feature commit precedes the docs commit).
 
 ## Next smallest task
 
-Once httpx is available: a ~20-line `httpx` `Transport` plus a recorded, redacted Polymarket US
-fixture; then get-market-by-id and settlement-rule retrieval for leg normalization.
+Record one redacted, approved read-only Polymarket US capture per endpoint and add it beside the synthetic
+fixtures; confirm event/team field shapes and settlement semantics against it and the settlement docs.

@@ -25,7 +25,10 @@
         "marketId": 1001,
         "long": true,
         "teamId": 12,
-        "quote": { "value": "0.5400", "currency": "USD" },
+        "quote": {
+          "value": "0.5400",
+          "currency": "USD"
+        },
         "tradable": true
       },
       {
@@ -37,7 +40,10 @@
         "marketId": 1001,
         "long": false,
         "teamId": 4,
-        "quote": { "value": "0.4700", "currency": "USD" },
+        "quote": {
+          "value": "0.4700",
+          "currency": "USD"
+        },
         "tradable": true
       }
     ],
@@ -45,9 +51,17 @@
     "hidden": false,
     "tags": [],
     "feeCoefficient": "0.02",
-    "bestBidQuote": { "value": "0.53", "currency": "USD" },
-    "bestAskQuote": { "value": "0.55", "currency": "USD" },
+    "bestBidQuote": {
+      "value": "0.53",
+      "currency": "USD"
+    },
+    "bestAskQuote": {
+      "value": "0.55",
+      "currency": "USD"
+    },
     "volume": "125000.00",
-    "comboEnabled": true
+    "comboEnabled": true,
+    "description": "Synthetic rules: resolves Yes if the named team wins in regulation or overtime.",
+    "rulesDisclaimer": "Synthetic disclaimer."
   }
 }
