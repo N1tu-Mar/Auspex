@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --color-ground: #e8ebe9;
+  --color-panel: #fbfcfb;
+  --color-ink: #161b19;
+  --color-muted: #525d58;
+  --color-rule: #cbd2ce;
+  --color-ok: #1c6641;
+  --color-warn: #875600;
+  --color-bad: #a1252a;
+  --color-focus: #2b5b8a;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
