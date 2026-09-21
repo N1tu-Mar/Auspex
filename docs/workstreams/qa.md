@@ -40,8 +40,11 @@ paste → resolve → review, plus its failure, ambiguity, stale, loading, and a
   catalog override (no app change) and restores the `EVENT_NOT_FOUND` behavior the specs assume.
 - Analysis coverage is API-level (`tests/integration/test_analysis_flow.py`): fixture market + fake
   evidence providers injected through the app's dependency overrides, real PostgreSQL, frozen clock.
-- The web app never calls `/api/v1/analyses`, so evidence/analysis UI cases are `test.fixme`, and the
-  workspace specs pin what exists: abstention, `Not checked` correlation, evidence dialog behavior.
+- The web workspace calls `/api/v1/analyses`. Live market data is not deterministic, so e2e serves
+  those two routes from `tests/e2e/fixtures/analysis-<scenario>.json` (`serveAnalysis`). The fixtures
+  are produced by the real flow: `test_e2e_analysis_fixture_matches_real_flow` fails on drift (UUIDs
+  masked); `QA_REGEN=1 uv run pytest tests/integration/test_analysis_flow.py` rewrites them.
+- The browser clock is pinned (`page.clock.setFixedTime`) one minute after the fixtures' cutoff.
 - Known defects are pinned with `test.fail()` and a request file. Unbuilt features use
   `test.fixme()` so the report shows the gap.
 
@@ -49,22 +52,20 @@ paste → resolve → review, plus its failure, ambiguity, stale, loading, and a
 
 Intake (unchanged): `intake.spec.ts` (7), `states.spec.ts` (5), `a11y.spec.ts` (5), see git history.
 
-- `tests/e2e/workspace.spec.ts` (9 active, 7 fixme):
-  - abstains with INSUFFICIENT_DATA, no invented probability or explanation
-  - combo caveat: joint probability unknown, not independent; none for a single leg
-  - reload in the same tab restores the workspace; fresh tab shows no slip and a way back
-  - evidence dialog: keyboard open, focus into dialog, Escape closes and restores focus, Tab never
-    reaches the page behind, Close button, dialog named "Evidence" (screen-reader name)
-  - paper trade unavailable, with accessible description
-  - fixme: evidence provenance display, conflicts, provider failure, stale, unsupported model,
-    correlation warnings, reload by saved analysis id (all need web to call `/api/v1/analyses`)
-- `tests/integration/test_analysis_flow.py` (9, PostgreSQL): intake retrievable by trace id; resolved
+- `tests/e2e/workspace.spec.ts` (21, no fixme): run sends saved slip id and no assumed fees; fee
+  validation blocks the request; no-evidence text; evidence publisher link, retrieval time and age;
+  conflicting evidence with both sources; one provider failing keeps the other's evidence; stale
+  evidence listed as too old with INSUFFICIENT_DATA; old-analysis banner; unsupported model reason;
+  combo correlation warnings with no joint probability; single leg; failed run retry; saved analysis
+  id (reload, fresh tab, open-by-id form, unknown id, loading announced); evidence dialog keyboard
+  open, focus, Escape, modal Tab, Close, paper trade unavailable with description.
+- `tests/integration/test_analysis_flow.py` (16, PostgreSQL; 7 are fixture-parity cases): intake retrievable by trace id; resolved
   slip to persisted analysis and identical reload by id; evidence publisher/url/retrieval time;
   conflicting claims both kept; one provider failing keeps the other's evidence; stale evidence
   dropped with `[STALE]` and INSUFFICIENT_DATA; unsupported sport abstains with reason; same-game
   combo stores `SHARED_GAME`; empty request uses the error envelope.
 - `tests/integration/test_e2e_fixture_parity.py` (4) and `tests/contract/test_e2e_fixtures_contract.py`
-  (3): unchanged; fixture regenerated for `participants`, `bet_slip_id` ignored as volatile.
+  (3+7): analysis fixtures validate against `AnalysisRecord`; paste fixture regenerated for `participants`, `bet_slip_id` ignored as volatile.
 - `tests/contract/test_analysis_contract.py` (2, no DB): OpenAPI routes and `AnalysisRecord` provenance
   collections.
 
@@ -74,22 +75,24 @@ Run 2026-09-21 (DB from `docker compose up -d db`):
 
 ```bash
 set -a; . ./.env.example; set +a
-uv run pytest tests/integration tests/contract              # 18 passed (contract-only: 5 without DATABASE_URL)
-uv run python tests/e2e/serve_api.py &
+uv run pytest tests/integration tests/contract              # 32 passed (contract-only: 12 without DATABASE_URL)
+uv run python tests/e2e/serve_api.py &        # needs the DB: docker compose up -d db
 pnpm --filter web exec vite --port 5173 --strictPort &
-pnpm test:e2e                                               # 27 passed, 7 skipped (fixme)
+pnpm test:e2e                                               # 39 passed, 0 skipped
+pnpm exec playwright test --repeat-each=3 workspace         # 63 passed, 0 flaky
 ```
 
-The 5x `--repeat-each` flake check was started and stopped unfinished (too slow); no flake data for the new specs beyond one full pass.
+Full-suite repeat check was not run (too slow); only the workspace spec was repeated.
 
 Also `pnpm exec biome check .`, `uv run ruff check tests`, `uv run mypy --strict tests/integration
 tests/contract` pass.
 
 ## Known issues
 
-- Web has no analysis UI: evidence display, conflicts, provider failures, stale, unsupported model,
-  correlation warnings, and reload by analysis id are fixme (7).
-- No service detects evidence conflicts. The API keeps both claims; nothing flags them.
+- Evidence conflicts are detected by a web heuristic (same event and category, different facts, for
+  INJURY/LINEUP/WEATHER), not by a service. Tests cover that heuristic only.
+- Every real analysis is INSUFFICIENT_DATA (no model/features). No test reaches CONSIDER/AVOID/PASS,
+  expected value, or edge in e2e against real backend output.
 - `contracts:check` is red on main (`AnalysisRun` name collision, request filed by backend).
 - CI `stack` job and Compose run plain uvicorn: paste hits live Polymarket, so intake e2e specs fail
   offline or on catalog drift. Needs a test catalog switch in the API or a Compose override.
@@ -108,5 +111,5 @@ See `git log`. This note lands in the same commit as the tests.
 
 ## Next smallest task
 
-When web calls `/api/v1/analyses`, route `/api/v1/analyses*` to fixtures generated from the
-integration flow and turn the seven fixme into specs.
+Add a stubbed-estimator fixture (CONSIDER with EV) once a model can be ACTIVE, and paper-trade capture
+when its endpoint exists.

@@ -39,10 +39,7 @@ test("single pasted market resolves and its slip can be reviewed", async ({ page
   await expect(slip.getByRole("row", { name: /Quoted gross payout/ })).toContainText("Not quoted");
   await slip.getByRole("button", { name: "Open analysis workspace" }).click();
   await expect(page).toHaveURL(/\/analysis$/);
-  await expect(page.getByRole("region", { name: "Recommendation" })).toContainText(
-    "INSUFFICIENT_DATA",
-  );
-  await expect(page.getByText(/Analysis pipeline not yet connected/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Run analysis" })).toBeVisible();
 });
 
 test("pasted combo keeps every leg separate, including one it cannot parse", async ({ page }) => {

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from app.analysis_record import AnalysisRecord
 from app.intake import CatalogEvent, IntakeResult
 
 FIXTURES = Path(__file__).parents[1] / "e2e" / "fixtures"
@@ -22,3 +23,8 @@ def test_catalog_fixture_is_valid_and_future_dated() -> None:
     assert events
     # Real manual intake rejects started events; keep fixture events well in the future.
     assert all(event.event_start_utc.year >= 2030 for event in events)
+
+
+@pytest.mark.parametrize("path", sorted(FIXTURES.glob("analysis-*.json")), ids=lambda p: p.name)
+def test_analysis_fixture_is_an_analysis_record(path: Path) -> None:
+    AnalysisRecord.model_validate_json(path.read_text())

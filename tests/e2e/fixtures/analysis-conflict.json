@@ -1,0 +1,165 @@
+{
+  "analysis": {
+    "as_of_utc": "2026-09-21T12:00:00Z",
+    "bet_slip_id": "f4c805ac-6075-4e1a-afdc-3b3c0120394c",
+    "code_version": "qa-sha",
+    "combo": null,
+    "created_at": "2026-09-21T12:00:00Z",
+    "expected_value": null,
+    "id": "1968530b-cfc9-4780-b864-250d57b24b41",
+    "intake_record_id": "091038bb-7dca-432e-8be5-7300dd380f0a",
+    "legs": [
+      {
+        "consensus_probability": null,
+        "edge_probability_points": null,
+        "estimate": null,
+        "event_snapshot_id": null,
+        "evidence_snapshot_id": "317bcc0d23a11eff59602b32f425afe8dade02937480959dd1a1198b825d27ef",
+        "feature_snapshot_id": "9cf9e4d8-68f6-4096-8f00-9c2abad396aa",
+        "insufficient_data": {
+          "reasons": [
+            "missing feature home_injury_report",
+            "missing feature away_injury_report",
+            "missing feature home_starting_qb_status",
+            "missing feature away_starting_qb_status",
+            "missing feature weather_forecast"
+          ],
+          "status": "INSUFFICIENT_DATA"
+        },
+        "leg_index": 0,
+        "market_implied_probability": "0.54",
+        "market_snapshot_id": "e4f59411-0f51-4045-861b-8a3922651da8"
+      }
+    ],
+    "model_version": "none",
+    "recommendation": {
+      "insufficient_data": {
+        "reasons": [
+          "leg 0: missing feature home_injury_report",
+          "leg 0: missing feature away_injury_report",
+          "leg 0: missing feature home_starting_qb_status",
+          "leg 0: missing feature away_starting_qb_status",
+          "leg 0: missing feature weather_forecast"
+        ],
+        "status": "INSUFFICIENT_DATA"
+      },
+      "reason": "leg 0: missing feature home_injury_report; leg 0: missing feature away_injury_report; leg 0: missing feature home_starting_qb_status; leg 0: missing feature away_starting_qb_status; leg 0: missing feature weather_forecast",
+      "recommendation": "INSUFFICIENT_DATA"
+    }
+  },
+  "events": [
+    {
+      "created_at": "2026-09-21T12:00:00Z",
+      "event_id": "9001",
+      "league": "NFL",
+      "sport": "NFL"
+    }
+  ],
+  "evidence_snapshots": [
+    {
+      "created_at": "2026-09-21T12:00:00Z",
+      "event_id": "9001",
+      "failures": [],
+      "items": [
+        {
+          "category": "INJURY",
+          "claim_kind": "RUMOR",
+          "derived_from": [],
+          "event_id": "9001",
+          "evidence_id": "46d6c41f6689fc3b5d5832bdd7eafd027b71927a4ace55250a08d8f6c2d12133",
+          "excerpt": null,
+          "extracted_fact": "Starter is out.",
+          "source": {
+            "content_sha256": null,
+            "provider": "north",
+            "published_at": null,
+            "publisher": "north publisher",
+            "retrieved_at": "2026-09-21T11:55:00Z",
+            "url": "https://north.example/a"
+          }
+        },
+        {
+          "category": "INJURY",
+          "claim_kind": "RUMOR",
+          "derived_from": [],
+          "event_id": "9001",
+          "evidence_id": "601187f3085689b8df077be30bda6df853e6bd3bf34cc09140458eb670a630ff",
+          "excerpt": null,
+          "extracted_fact": "Starter will play.",
+          "source": {
+            "content_sha256": null,
+            "provider": "south",
+            "published_at": null,
+            "publisher": "south publisher",
+            "retrieved_at": "2026-09-21T11:55:00Z",
+            "url": "https://south.example/a"
+          }
+        }
+      ],
+      "snapshot_id": "317bcc0d23a11eff59602b32f425afe8dade02937480959dd1a1198b825d27ef"
+    }
+  ],
+  "feature_snapshots": [
+    {
+      "captured_at": "2026-09-21T12:00:00Z",
+      "event_id": "9001",
+      "evidence_snapshot_id": "317bcc0d23a11eff59602b32f425afe8dade02937480959dd1a1198b825d27ef",
+      "feature_set_version": "unassembled-v0",
+      "features": {},
+      "id": "9cf9e4d8-68f6-4096-8f00-9c2abad396aa",
+      "sport": "NFL"
+    }
+  ],
+  "market_snapshots": [
+    {
+      "best_ask_usd": "0.55",
+      "best_bid_usd": "0.53",
+      "captured_at": "2026-09-21T12:00:00Z",
+      "combo_enabled": true,
+      "fee_coefficient": "0.02",
+      "id": "e4f59411-0f51-4045-861b-8a3922651da8",
+      "is_open": true,
+      "market_id": "fixture-mkt-1001",
+      "provider": "polymarket_us",
+      "sides": [
+        {
+          "description": "Kansas City Chiefs",
+          "is_long": true,
+          "price_usd": "0.5400",
+          "side_id": "fixture-side-1",
+          "tradable": true
+        },
+        {
+          "description": "Buffalo Bills",
+          "is_long": false,
+          "price_usd": "0.4700",
+          "side_id": "fixture-side-2",
+          "tradable": true
+        }
+      ],
+      "source": {
+        "content_sha256": null,
+        "provider": "polymarket_us",
+        "published_at": null,
+        "publisher": "Polymarket US",
+        "retrieved_at": "2026-09-21T12:00:00Z",
+        "url": "https://gateway.polymarket.us/v1/market/id/fixture-mkt-1001"
+      },
+      "title": "Chiefs vs. Bills",
+      "warnings": []
+    }
+  ],
+  "markets": [
+    {
+      "created_at": "2026-09-21T12:00:00Z",
+      "event_id": "9001",
+      "line": null,
+      "market_id": "fixture-mkt-1001",
+      "market_type": "MONEYLINE",
+      "provider": "polymarket_us",
+      "provider_market_type": "MONEYLINE",
+      "slug": "nfl-kc-buf-2026-09-27"
+    }
+  ],
+  "provider_failures": []
+}

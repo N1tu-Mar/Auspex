@@ -6,7 +6,10 @@ Evidence conflicts are not detected by any service yet; the conflict test pins t
 survive verbatim with their own provenance instead of being merged or dropped.
 """
 
-from collections.abc import Iterator
+import json
+import os
+import re
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -55,8 +58,6 @@ def leg(**changes: Any) -> dict[str, Any]:
 class Provider:
     """One deterministic evidence provider: a fixed fact, a failure, or an old retrieval."""
 
-    category = EvidenceCategory.NEWS
-
     def __init__(
         self,
         name: str,
@@ -64,7 +65,9 @@ class Provider:
         *,
         fail: bool = False,
         age: timedelta = timedelta(minutes=5),
+        category: EvidenceCategory = EvidenceCategory.NEWS,
     ) -> None:
+        self.category = category
         self.source = SourceIdentity(name, f"{name} publisher", f"https://{name}.example")
         self.name, self.fact, self.fail, self.age = name, fact, fail, age
 
@@ -203,3 +206,46 @@ def test_analysis_request_needs_an_id_and_uses_the_error_envelope() -> None:
     response = client.post("/api/v1/analyses", json={})
     assert response.status_code == 422
     assert response.json()["code"] == "MALFORMED_INPUT"
+
+
+INJURY = EvidenceCategory.INJURY
+COMBO = (leg(), leg(market_type="TOTAL", side="OVER", line="47.5", market_price_usd="0.5"))
+# Scenario -> (legs, providers). Served to the browser suite as e2e/fixtures/analysis-*.json.
+SCENARIOS: dict[str, tuple[tuple[dict[str, Any], ...], Callable[[], list[Any]]]] = {
+    "nodata": ((leg(),), list),
+    "evidence": (
+        (leg(),),
+        lambda: [Provider("wire", "Starter is questionable.", category=INJURY)],
+    ),
+    "conflict": (
+        (leg(),),
+        lambda: [
+            Provider("north", "Starter is out.", category=INJURY),
+            Provider("south", "Starter will play.", category=INJURY),
+        ],
+    ),
+    "partial": (
+        (leg(),),
+        lambda: [Provider("ok", "Dry field."), Provider("down", fail=True)],
+    ),
+    "stale": ((leg(),), lambda: [Provider("old", "Old news.", age=timedelta(days=3))]),
+    "unsupported": ((leg(sport="SOCCER", league="EPL", side="HOME"),), list),
+    "combo": (COMBO, list),
+}
+FIXTURES = Path(__file__).parents[1] / "e2e" / "fixtures"
+UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+
+@pytest.mark.parametrize("name", SCENARIOS)
+def test_e2e_analysis_fixture_matches_real_flow(name: str) -> None:
+    """The browser suite serves these in place of /api/v1/analyses (live market data is not
+    deterministic). QA_REGEN=1 rewrites them from the real flow; otherwise drift fails here."""
+    legs, providers = SCENARIOS[name]
+    wire(providers())
+    actual = json.dumps(analyze(*legs), indent=2, sort_keys=True) + "\n"
+    path = FIXTURES / f"analysis-{name}.json"
+    if os.environ.get("QA_REGEN"):
+        path.write_text(actual)
+    assert json.loads(UUID.sub("<uuid>", path.read_text())) == json.loads(
+        UUID.sub("<uuid>", actual)
+    )

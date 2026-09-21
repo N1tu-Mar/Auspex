@@ -1,0 +1,148 @@
+{
+  "analysis": {
+    "as_of_utc": "2026-09-21T12:00:00Z",
+    "bet_slip_id": "2e88700a-3207-487a-9c4e-8baa225ddb19",
+    "code_version": "qa-sha",
+    "combo": null,
+    "created_at": "2026-09-21T12:00:00Z",
+    "expected_value": null,
+    "id": "d1447b34-c6f9-4d14-a921-0cbd4535d968",
+    "intake_record_id": "b0e95053-5b2b-4280-b8be-da630af54caa",
+    "legs": [
+      {
+        "consensus_probability": null,
+        "edge_probability_points": null,
+        "estimate": null,
+        "event_snapshot_id": null,
+        "evidence_snapshot_id": "edb87ba86ec6be4d42b01376ca809f092086a985bb19bbd52343dcaec750c63d",
+        "feature_snapshot_id": "e16db165-8728-46e8-94d1-89743e41159e",
+        "insufficient_data": {
+          "reasons": [
+            "missing feature home_injury_report",
+            "missing feature away_injury_report",
+            "missing feature home_starting_qb_status",
+            "missing feature away_starting_qb_status",
+            "missing feature weather_forecast"
+          ],
+          "status": "INSUFFICIENT_DATA"
+        },
+        "leg_index": 0,
+        "market_implied_probability": "0.54",
+        "market_snapshot_id": "d8d8a194-9036-4481-8521-e611436278be"
+      }
+    ],
+    "model_version": "none",
+    "recommendation": {
+      "insufficient_data": {
+        "reasons": [
+          "leg 0: missing feature home_injury_report",
+          "leg 0: missing feature away_injury_report",
+          "leg 0: missing feature home_starting_qb_status",
+          "leg 0: missing feature away_starting_qb_status",
+          "leg 0: missing feature weather_forecast"
+        ],
+        "status": "INSUFFICIENT_DATA"
+      },
+      "reason": "leg 0: missing feature home_injury_report; leg 0: missing feature away_injury_report; leg 0: missing feature home_starting_qb_status; leg 0: missing feature away_starting_qb_status; leg 0: missing feature weather_forecast",
+      "recommendation": "INSUFFICIENT_DATA"
+    }
+  },
+  "events": [
+    {
+      "created_at": "2026-09-21T12:00:00Z",
+      "event_id": "9001",
+      "league": "NFL",
+      "sport": "NFL"
+    }
+  ],
+  "evidence_snapshots": [
+    {
+      "created_at": "2026-09-21T12:00:00Z",
+      "event_id": "9001",
+      "failures": [],
+      "items": [
+        {
+          "category": "INJURY",
+          "claim_kind": "RUMOR",
+          "derived_from": [],
+          "event_id": "9001",
+          "evidence_id": "a3be7991a8ee7605635b0d3cdea961cb5a77bdca8fc9219cab208a40a8b424e4",
+          "excerpt": null,
+          "extracted_fact": "Starter is questionable.",
+          "source": {
+            "content_sha256": null,
+            "provider": "wire",
+            "published_at": null,
+            "publisher": "wire publisher",
+            "retrieved_at": "2026-09-21T11:55:00Z",
+            "url": "https://wire.example/a"
+          }
+        }
+      ],
+      "snapshot_id": "edb87ba86ec6be4d42b01376ca809f092086a985bb19bbd52343dcaec750c63d"
+    }
+  ],
+  "feature_snapshots": [
+    {
+      "captured_at": "2026-09-21T12:00:00Z",
+      "event_id": "9001",
+      "evidence_snapshot_id": "edb87ba86ec6be4d42b01376ca809f092086a985bb19bbd52343dcaec750c63d",
+      "feature_set_version": "unassembled-v0",
+      "features": {},
+      "id": "e16db165-8728-46e8-94d1-89743e41159e",
+      "sport": "NFL"
+    }
+  ],
+  "market_snapshots": [
+    {
+      "best_ask_usd": "0.55",
+      "best_bid_usd": "0.53",
+      "captured_at": "2026-09-21T12:00:00Z",
+      "combo_enabled": true,
+      "fee_coefficient": "0.02",
+      "id": "d8d8a194-9036-4481-8521-e611436278be",
+      "is_open": true,
+      "market_id": "fixture-mkt-1001",
+      "provider": "polymarket_us",
+      "sides": [
+        {
+          "description": "Kansas City Chiefs",
+          "is_long": true,
+          "price_usd": "0.5400",
+          "side_id": "fixture-side-1",
+          "tradable": true
+        },
+        {
+          "description": "Buffalo Bills",
+          "is_long": false,
+          "price_usd": "0.4700",
+          "side_id": "fixture-side-2",
+          "tradable": true
+        }
+      ],
+      "source": {
+        "content_sha256": null,
+        "provider": "polymarket_us",
+        "published_at": null,
+        "publisher": "Polymarket US",
+        "retrieved_at": "2026-09-21T12:00:00Z",
+        "url": "https://gateway.polymarket.us/v1/market/id/fixture-mkt-1001"
+      },
+      "title": "Chiefs vs. Bills",
+      "warnings": []
+    }
+  ],
+  "markets": [
+    {
+      "created_at": "2026-09-21T12:00:00Z",
+      "event_id": "9001",
+      "line": null,
+      "market_id": "fixture-mkt-1001",
+      "market_type": "MONEYLINE",
+      "provider": "polymarket_us",
+      "provider_market_type": "MONEYLINE",
+      "slug": "nfl-kc-buf-2026-09-27"
+    }
+  ],
+  "provider_failures": []
+}

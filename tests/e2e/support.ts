@@ -11,8 +11,8 @@ export function fixture(name: string) {
 }
 
 /** Serve a paste fixture in place of the API (the production catalog is empty). */
-export async function servePaste(page: Page, name: string) {
-  const body = fixture(name);
+export async function servePaste(page: Page, name: string, extra: Record<string, unknown> = {}) {
+  const body = { ...fixture(name), ...extra };
   const requests: Record<string, unknown>[] = [];
   await page.route(PASTE_URL, async (route) => {
     requests.push(route.request().postDataJSON());
@@ -69,4 +69,31 @@ export async function resolveSingleMarket(page: Page) {
   await fillLeg(legGroup(page, 1), KC_BUF_ML);
   await page.getByRole("button", { name: "Check legs" }).click();
   await expect(page.getByRole("region", { name: "Resolved slip" })).toBeVisible();
+}
+
+export const SAVED_SLIP_ID = "3c9d8e7f-1a2b-4c3d-8e4f-5a6b7c8d9e0f";
+
+/**
+ * Serve /api/v1/analyses from a scenario fixture (live market data is not deterministic; the
+ * fixtures are proven equal to the real flow by tests/integration). POST echoes the requested
+ * slip id; GET answers only the fixture's own id.
+ */
+export async function serveAnalysis(page: Page, scenario: string) {
+  const record = fixture(`analysis-${scenario}.json`);
+  const posts: Record<string, unknown>[] = [];
+  await page.route("**/api/v1/analyses", async (route) => {
+    const request = route.request().postDataJSON();
+    posts.push(request);
+    const analysis = { ...record.analysis, bet_slip_id: request.bet_slip_id };
+    await route.fulfill({ status: 201, json: { ...record, analysis } });
+  });
+  await page.route("**/api/v1/analyses/*", async (route) => {
+    const found = route.request().url().endsWith(record.analysis.id);
+    await route.fulfill(
+      found
+        ? { json: record }
+        : { status: 404, json: { code: "NOT_FOUND", message: "No analysis with that id." } },
+    );
+  });
+  return { record, posts, id: record.analysis.id as string };
 }
