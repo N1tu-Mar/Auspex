@@ -1,0 +1,32 @@
+[
+  {
+    "event_id": "qa-nfl-kc-buf",
+    "sport": "NFL",
+    "league": "NFL",
+    "event_start_utc": "2030-09-29T00:20:00Z",
+    "home_participant": "Kansas City Chiefs",
+    "away_participant": "Buffalo Bills",
+    "aliases": { "Kansas City Chiefs": ["Chiefs", "KC"], "Buffalo Bills": ["Bills", "BUF"] },
+    "settlement_rule_refs": { "MONEYLINE": "qa-nfl-ml", "TOTAL": "qa-nfl-total" }
+  },
+  {
+    "event_id": "qa-nfl-nyg-dal",
+    "sport": "NFL",
+    "league": "NFL",
+    "event_start_utc": "2030-09-29T17:00:00Z",
+    "home_participant": "New York Giants",
+    "away_participant": "Dallas Cowboys",
+    "aliases": { "New York Giants": ["Giants"] },
+    "settlement_rule_refs": { "MONEYLINE": "qa-nfl-ml" }
+  },
+  {
+    "event_id": "qa-nfl-nyg-phi",
+    "sport": "NFL",
+    "league": "NFL",
+    "event_start_utc": "2030-10-06T17:00:00Z",
+    "home_participant": "New York Giants",
+    "away_participant": "Philadelphia Eagles",
+    "aliases": { "New York Giants": ["Giants"] },
+    "settlement_rule_refs": { "MONEYLINE": "qa-nfl-ml" }
+  }
+]

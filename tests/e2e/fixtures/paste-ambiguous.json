@@ -1,0 +1,55 @@
+{
+  "trace_id": "00000000-0000-4000-8000-000000000002",
+  "received_at_utc": "2030-09-01T12:00:00Z",
+  "source": "paste",
+  "state": "NEEDS_RESOLUTION",
+  "original_input": "Giants ML @ 0.48",
+  "legs": [
+    {
+      "index": 0,
+      "state": "NEEDS_RESOLUTION",
+      "raw_text": "Giants ML @ 0.48",
+      "sport": null,
+      "league": null,
+      "event_id": null,
+      "event_start_utc": null,
+      "home_participant": null,
+      "away_participant": null,
+      "player_id": null,
+      "market_type": "MONEYLINE",
+      "side": null,
+      "line": null,
+      "polymarket_market_id": null,
+      "market_price_usd": "0.48",
+      "settlement_rule_ref": null,
+      "status": null,
+      "candidates": [
+        {
+          "event_id": "qa-nfl-nyg-dal",
+          "sport": "NFL",
+          "league": "NFL",
+          "event_start_utc": "2030-09-29T17:00:00Z",
+          "home_participant": "New York Giants",
+          "away_participant": "Dallas Cowboys"
+        },
+        {
+          "event_id": "qa-nfl-nyg-phi",
+          "sport": "NFL",
+          "league": "NFL",
+          "event_start_utc": "2030-10-06T17:00:00Z",
+          "home_participant": "New York Giants",
+          "away_participant": "Philadelphia Eagles"
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "code": "AMBIGUOUS_EVENT",
+      "message": "2 events match; choose one.",
+      "leg_index": 0,
+      "field": "event_id"
+    }
+  ],
+  "slip": null
+}
