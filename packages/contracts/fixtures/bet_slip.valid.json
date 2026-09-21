@@ -1,0 +1,30 @@
+{
+  "original_input": "Chiefs ML + Chiefs/Bills over 47.5",
+  "stake_usd": "10.00",
+  "gross_payout_usd": "31.25",
+  "legs": [
+    {
+      "sport": "NFL",
+      "league": "NFL",
+      "event_id": "fixture-kc-buf",
+      "event_start_utc": "2026-10-04T20:25:00-04:00",
+      "home_participant": "Kansas City Chiefs",
+      "away_participant": "Buffalo Bills",
+      "market_type": "MONEYLINE",
+      "side": "HOME",
+      "market_price_usd": "0.5600"
+    },
+    {
+      "sport": "NFL",
+      "league": "NFL",
+      "event_id": "fixture-kc-buf",
+      "event_start_utc": "2026-10-05T00:25:00Z",
+      "home_participant": "Kansas City Chiefs",
+      "away_participant": "Buffalo Bills",
+      "market_type": "TOTAL",
+      "side": "OVER",
+      "line": "47.5",
+      "market_price_usd": "0.5100"
+    }
+  ]
+}

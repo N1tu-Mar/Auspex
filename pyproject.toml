@@ -1,0 +1,40 @@
+[tool.uv.workspace]
+members = ["apps/api", "packages/contracts"]
+
+[dependency-groups]
+dev = [
+    "auspex-api",
+    "auspex-contracts",
+    "httpx2>=2.13",
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[tool.uv.sources]
+auspex-api = { workspace = true }
+auspex-contracts = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["packages/contracts/generated"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "DTZ", "RUF"]
+ignore = ["S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "auspex_contracts"]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["apps/api", "packages/contracts", "database/migrations"]
+mypy_path = "apps/api:packages/contracts"
+explicit_package_bases = true
+
+[tool.pytest.ini_options]
+testpaths = ["apps/api/tests", "packages/contracts/tests"]
+markers = ["db: requires a running PostgreSQL (pnpm test:db)"]
+addopts = "--import-mode=importlib"
