@@ -67,7 +67,7 @@ After foundation and backend; alongside research; before frontend. No migrations
 
 ## Last completed commit
 
-See the handoff: this note is committed in the final docs commit on `work/prediction`.
+Implementation: `629e244`. Docs: `cb4a561`, plus the follow-up commit that records these SHAs, on `work/prediction`.
 
 ## Next smallest task
 
