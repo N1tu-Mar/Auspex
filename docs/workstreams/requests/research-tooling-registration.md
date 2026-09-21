@@ -2,7 +2,7 @@
 
 - From: research (`work/research`)
 - To: foundation
-- Status: open
+- Status: done (2026-09-21) — foundation registered `services/research`, root tooling, and `httpx`; research removed the `conftest.py` shim.
 
 ## Why
 
