@@ -1,6 +1,7 @@
 from decimal import Decimal as D
 
 import pytest
+
 from auspex_prediction.core import InsufficientData, require_probability
 from auspex_prediction.ev import (
     PositionCosts,

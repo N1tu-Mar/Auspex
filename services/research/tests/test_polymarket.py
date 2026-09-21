@@ -5,6 +5,8 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+
+from auspex_contracts import MarketType
 from auspex_research.errors import ProviderError, ProviderErrorKind
 from auspex_research.fixtures import FIXTURE_DIR, FixtureTransport, json_fixture
 from auspex_research.polymarket import (
@@ -14,8 +16,6 @@ from auspex_research.polymarket import (
 )
 from auspex_research.providers import NormalizedMarket, PolymarketProvider, ProviderResponse
 from auspex_research.transport import RawResponse, RetryPolicy
-
-from auspex_contracts import MarketType
 
 NOW = datetime(2026, 9, 21, 12, 0, tzinfo=UTC)
 BASE = "https://gateway.polymarket.us/v1/market/slug/"

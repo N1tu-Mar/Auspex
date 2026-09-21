@@ -1,6 +1,8 @@
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
+from pydantic import ValidationError
+
 from auspex_research.errors import ProviderErrorKind
 from auspex_research.evidence import (
     ClaimKind,
@@ -10,7 +12,6 @@ from auspex_research.evidence import (
     ProviderFailure,
     SourceSnapshot,
 )
-from pydantic import ValidationError
 
 RETRIEVED = datetime(2026, 9, 20, 16, 0, tzinfo=UTC)
 

@@ -3,6 +3,8 @@ from decimal import Decimal as D
 from typing import Any
 
 import pytest
+
+from auspex_contracts import BetLeg, LegStatus, MarketType, Side, Sport
 from auspex_prediction.core import InsufficientData
 from auspex_sports.adapter import (
     CoverageBoundedAdapter,
@@ -13,8 +15,6 @@ from auspex_sports.adapter import (
 )
 from auspex_sports.mlb import MLB_ADAPTER, MLB_COVERAGE
 from auspex_sports.nfl import NFL_ADAPTER, NFL_COVERAGE
-
-from auspex_contracts import BetLeg, LegStatus, MarketType, Side, Sport
 
 NOW = datetime(2026, 9, 21, 12, tzinfo=UTC)
 START = NOW + timedelta(hours=4)

@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal as D
 
 import pytest
+
 from auspex_prediction.core import InsufficientData
 from auspex_prediction.devig import (
     BookQuote,

@@ -16,14 +16,13 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Protocol
 
+from auspex_contracts import BetLeg, MarketType, Side, Sport
 from auspex_prediction.core import (
     InsufficientData,
     pregame_blockers,
     require_aware,
     require_probability,
 )
-
-from auspex_contracts import BetLeg, MarketType, Side, Sport
 
 
 @dataclass(frozen=True)

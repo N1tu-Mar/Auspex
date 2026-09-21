@@ -3,6 +3,8 @@ from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, Final
 
 import pytest
+
+from auspex_contracts import Sport
 from auspex_research.errors import ProviderError, ProviderErrorKind
 from auspex_research.evidence import ClaimKind, EvidenceCategory, EvidenceItem, SourceSnapshot
 from auspex_research.fixtures import FixtureTransport
@@ -15,8 +17,6 @@ from auspex_research.providers import (
     build_snapshot,
 )
 from auspex_research.transport import RawResponse, RetryPolicy, Transport, fetch_json
-
-from auspex_contracts import Sport
 
 SOURCE = SourceIdentity(provider="fixture", publisher="Fixture", base_url="https://api.test")
 URL = "https://api.test/v1/thing"
