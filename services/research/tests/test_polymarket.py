@@ -15,7 +15,7 @@ from auspex_research.polymarket import (
     normalize_market,
 )
 from auspex_research.providers import NormalizedMarket, PolymarketProvider, ProviderResponse
-from auspex_research.transport import RawResponse, RetryPolicy
+from auspex_research.transport import Fetcher, RawResponse, RetryPolicy
 
 NOW = datetime(2026, 9, 21, 12, 0, tzinfo=UTC)
 BASE = "https://gateway.polymarket.us/v1/market/slug/"
@@ -25,12 +25,12 @@ PROP = "polymarket_us/market_by_slug.prop_unusual.synthetic.json"
 
 def fetch(transport: FixtureTransport, slug: str) -> ProviderResponse[NormalizedMarket]:
     client: PolymarketProvider = PolymarketUSClient(
-        transport, RetryPolicy(max_attempts=1), clock=lambda: NOW
+        Fetcher(transport, RetryPolicy(max_attempts=1), clock=lambda: NOW)
     )
     return asyncio.run(client.get_market_by_slug(slug))
 
 
-@pytest.mark.parametrize("fixture", sorted(FIXTURE_DIR.glob("polymarket_us/*.json")))
+@pytest.mark.parametrize("fixture", sorted(FIXTURE_DIR.glob("polymarket_us/market_by_slug.*.json")))
 def test_every_fixture_satisfies_the_upstream_contract(fixture: Path) -> None:
     MarketEnvelope.model_validate(json.loads(fixture.read_text()))
 

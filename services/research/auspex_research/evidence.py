@@ -122,6 +122,22 @@ class ProviderFailure(_Frozen):
         return value.astimezone(UTC)
 
 
+class SourceRun(_Frozen):
+    """Provenance of one provider call that succeeded, even if it returned no evidence."""
+
+    provider: str = Field(min_length=1)
+    url: str = Field(description="Redacted request URL.")
+    retrieved_at: AwareDatetime
+    from_cache: bool
+    attempts: int = Field(ge=0)
+    item_count: int = Field(ge=0, description="Items returned, before freshness/dedupe.")
+
+    @field_validator("retrieved_at")
+    @classmethod
+    def _to_utc(cls, value: datetime) -> datetime:
+        return value.astimezone(UTC)
+
+
 class EvidenceSnapshot(_Frozen):
     """The exact evidence used for one event at one moment. Never mutated; newer data = new one."""
 
@@ -130,6 +146,7 @@ class EvidenceSnapshot(_Frozen):
     created_at: AwareDatetime
     items: tuple[EvidenceItem, ...]
     failures: tuple[ProviderFailure, ...] = ()
+    runs: tuple[SourceRun, ...] = ()
 
     @field_validator("created_at")
     @classmethod

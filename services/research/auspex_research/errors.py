@@ -6,8 +6,10 @@ class ProviderErrorKind(StrEnum):
     RATE_LIMITED = "RATE_LIMITED"
     UNAVAILABLE = "UNAVAILABLE"  # network failure or 5xx
     NOT_FOUND = "NOT_FOUND"
-    BAD_REQUEST = "BAD_REQUEST"  # other 4xx; our request is wrong or refused
+    AUTH = "AUTH"  # 401/403: credentials missing, invalid, or not permitted
+    BAD_REQUEST = "BAD_REQUEST"  # other 4xx or unfollowed redirect; our request is wrong
     SCHEMA = "SCHEMA"  # response did not match the expected shape
+    STALE = "STALE"  # data arrived but is older than the freshness window; dropped, not used
 
 
 RETRYABLE_KINDS = frozenset(
