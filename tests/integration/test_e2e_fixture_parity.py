@@ -25,16 +25,19 @@ REQUESTS: dict[str, dict[str, Any]] = {
     "paste-combo.json": {"stake_usd": "1.00", "gross_payout_usd": "3.50"},
     "paste-ambiguous.json": {"stake_usd": "1.00"},
 }
-VOLATILE = {"trace_id", "received_at_utc"}
+VOLATILE = {"trace_id", "received_at_utc", "bet_slip_id"}
 
 
 @pytest.fixture(autouse=True)
 def fixture_catalog() -> Iterator[None]:
     catalog = json.loads((FIXTURES / "catalog.json").read_text())
     app.dependency_overrides[get_now] = lambda: NOW
-    app.dependency_overrides[get_event_catalog] = lambda: [
-        CatalogEvent.model_validate(event) for event in catalog
-    ]
+    events = [CatalogEvent.model_validate(event) for event in catalog]
+
+    async def load() -> list[CatalogEvent]:
+        return events
+
+    app.dependency_overrides[get_event_catalog] = lambda: load
     yield
     app.dependency_overrides.clear()
 
@@ -59,7 +62,7 @@ def test_every_paste_fixture_is_covered() -> None:
 def test_ambiguous_choice_resolves_through_manual_intake() -> None:
     """The UI's correction path: take a candidate, add side and settlement, check manually."""
     leg = json.loads((FIXTURES / "paste-ambiguous.json").read_text())["legs"][0]
-    chosen = leg["candidates"][1]
+    chosen = {k: v for k, v in leg["candidates"][1].items() if k != "participants"}
     slip = {
         "original_input": "Giants ML @ 0.48",
         "stake_usd": "1.00",

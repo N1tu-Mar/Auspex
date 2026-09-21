@@ -30,7 +30,8 @@
           "league": "NFL",
           "event_start_utc": "2030-09-29T17:00:00Z",
           "home_participant": "New York Giants",
-          "away_participant": "Dallas Cowboys"
+          "away_participant": "Dallas Cowboys",
+          "participants": ["New York Giants", "Dallas Cowboys"]
         },
         {
           "event_id": "qa-nfl-nyg-phi",
@@ -38,7 +39,8 @@
           "league": "NFL",
           "event_start_utc": "2030-10-06T17:00:00Z",
           "home_participant": "New York Giants",
-          "away_participant": "Philadelphia Eagles"
+          "away_participant": "Philadelphia Eagles",
+          "participants": ["New York Giants", "Philadelphia Eagles"]
         }
       ]
     }
@@ -51,5 +53,6 @@
       "field": "event_id"
     }
   ],
-  "slip": null
+  "slip": null,
+  "bet_slip_id": null
 }

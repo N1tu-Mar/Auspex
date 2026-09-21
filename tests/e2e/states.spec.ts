@@ -96,7 +96,3 @@ test("an unreachable service keeps pasted text and can be retried", async ({ pag
   await failure.getByRole("button", { name: "Try again" }).click();
   await expect(legGroup(page, 1).getByText("No known event matches Chiefs.")).toBeVisible();
 });
-
-// Not built yet: evidence collection has no API or UI. Tracked so the gap stays visible.
-test.fixme("conflicting evidence is flagged with both sources", async () => {});
-test.fixme("one evidence provider failing keeps evidence from the others", async () => {});
