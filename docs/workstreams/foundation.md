@@ -58,6 +58,7 @@ Phase 1 follow-up, 2026-09-21 (worktree `../auspex-foundation`):
 - `research-tooling-registration.md` — served (`485dc33`, imports re-sorted in `ecb5546`). Added `services/research/pyproject.toml` (`auspex-research`: `auspex-contracts`, `httpx>=0.28`, `pydantic>=2.9`). Research should now delete the `services/research/conftest.py` `sys.path` shim.
 - `prediction-to-foundation-services-tooling-and-contract-fields.md` §1 — served (same commits). Explicit `PYTHONPATH`/`MYPYPATH` invocations are no longer needed.
 - Prediction §2 (period/scope, player-prop stat type, venue/roof, promoting result dataclasses) — deferred; request marks it future and no consumer needs it yet.
+- Follow-up sweep on 2026-09-21: every file in `docs/workstreams/requests/` has been served or explicitly deferred, and no stream branch has commits missing from `main`. No new schema or contract changes were needed. Re-verified at `a67506b`: `pnpm contracts:check` up to date; `pnpm check` passes (221 pytest, 2 Vitest, mypy strict on 42 files); `pnpm test:db` 8 pass; `git diff --check` clean.
 
 ## Known issues
 
@@ -72,7 +73,7 @@ Phase 1 follow-up, 2026-09-21 (worktree `../auspex-foundation`):
 
 ## Integration order
 
-Merge `work/foundation` into `main` (it carries `work/backend`, `work/research`, and `work/prediction` at the SHAs above). Each stream then merges `main`: backend persists intake through `IntakeRecord`; research drops its conftest shim.
+Done: `main` = `work/foundation` at `a67506b`, which includes `work/backend` `7b3e96b`, `work/research` `3601575`, and `work/prediction` `70c560b`. Each stream now merges `main`: backend persists intake through `IntakeRecord`; research removes its conftest shim.
 
 ## Last completed commit
 
