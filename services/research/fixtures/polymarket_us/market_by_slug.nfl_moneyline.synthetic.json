@@ -1,0 +1,53 @@
+{
+  "market": {
+    "id": "fixture-mkt-1001",
+    "question": "Kansas City Chiefs vs. Buffalo Bills",
+    "slug": "nfl-kc-buf-2026-09-27",
+    "title": "Chiefs vs. Bills",
+    "category": "sports",
+    "startDate": "2026-09-20T12:00:00Z",
+    "endDate": "2026-09-28T04:00:00Z",
+    "active": true,
+    "closed": false,
+    "archived": false,
+    "marketType": "binary",
+    "gameStartTime": "2026-09-27T20:25:00Z",
+    "sportsMarketType": "moneyline",
+    "sportsMarketTypeV2": "MONEYLINE",
+    "line": null,
+    "marketSides": [
+      {
+        "id": "fixture-side-1",
+        "marketSideType": "MARKET_SIDE_TYPE_INSTRUMENT",
+        "identifier": "KC",
+        "description": "Kansas City Chiefs",
+        "price": "0.5400",
+        "marketId": 1001,
+        "long": true,
+        "teamId": 12,
+        "quote": { "value": "0.5400", "currency": "USD" },
+        "tradable": true
+      },
+      {
+        "id": "fixture-side-2",
+        "marketSideType": "MARKET_SIDE_TYPE_INSTRUMENT",
+        "identifier": "BUF",
+        "description": "Buffalo Bills",
+        "price": "0.4700",
+        "marketId": 1001,
+        "long": false,
+        "teamId": 4,
+        "quote": { "value": "0.4700", "currency": "USD" },
+        "tradable": true
+      }
+    ],
+    "ep3Status": "open",
+    "hidden": false,
+    "tags": [],
+    "feeCoefficient": "0.02",
+    "bestBidQuote": { "value": "0.53", "currency": "USD" },
+    "bestAskQuote": { "value": "0.55", "currency": "USD" },
+    "volume": "125000.00",
+    "comboEnabled": true
+  }
+}

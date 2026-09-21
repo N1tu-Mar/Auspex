@@ -1,0 +1,17 @@
+{
+  "market": {
+    "id": "fixture-mkt-2002",
+    "question": "Will the first-quarter total exceed 10.5?",
+    "slug": "nfl-kc-buf-q1-total",
+    "active": true,
+    "closed": true,
+    "gameStartTime": "2026-09-27T20:25:00",
+    "sportsMarketTypeV2": "PROP",
+    "line": "10.5",
+    "marketSides": [
+      { "id": "fixture-side-3", "description": "Over", "price": "1.20", "long": true },
+      { "id": "fixture-side-4", "description": "Under", "price": null, "long": false }
+    ],
+    "bestBidQuote": { "value": "0.40", "currency": "EUR" }
+  }
+}
