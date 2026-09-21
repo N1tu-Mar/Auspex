@@ -15,7 +15,7 @@ async function fetchHealth(): Promise<Health> {
 }
 
 export function App() {
-  const { path, state } = useLocation();
+  const { path, analysisId, state } = useLocation();
   const intake = (state as { intake?: IntakeResult } | null)?.intake;
   // Last slip opened in the workspace, so the nav link can return to it.
   const [lastIntake, setLastIntake] = useState(intake);
@@ -23,6 +23,8 @@ export function App() {
     if (result) setLastIntake(result);
     navigate("/analysis", result ? { intake: result } : null);
   };
+  // Keep the slip in history state so the analysis view can name its legs.
+  const openAnalysis = (id: string) => navigate(`/analysis?id=${id}`, intake ? { intake } : null);
 
   const viewStart = useRef<HTMLDivElement>(null);
   const firstRender = useRef(true);
@@ -80,7 +82,14 @@ export function App() {
           </p>
           <NewAnalysis onContinue={openWorkspace} />
         </div>
-        {path === "/analysis" && <Workspace intake={intake} onBack={() => navigate("/")} />}
+        {path === "/analysis" && (
+          <Workspace
+            intake={intake}
+            analysisId={analysisId}
+            onBack={() => navigate("/")}
+            onOpen={openAnalysis}
+          />
+        )}
       </main>
     </div>
   );

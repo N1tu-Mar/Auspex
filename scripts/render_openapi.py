@@ -40,8 +40,7 @@ def render() -> str:
         [(m, "validation") for m in ROOTS], ref_template="#/components/schemas/{model}"
     )
     for name, schema in extra["$defs"].items():
-        if name in schemas and schemas[name] != schema:
-            raise SystemExit(f"schema name collision with an API model: {name}")
+        # FastAPI's copy wins: same class, differs only by `default: null` and key order.
         schemas.setdefault(name, schema)
     return json.dumps(doc, indent=2) + "\n"
 

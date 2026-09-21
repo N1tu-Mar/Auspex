@@ -15,9 +15,29 @@ export interface paths {
         put?: never;
         /**
          * Intake Manual
-         * @description Check a manually entered slip against pregame intake rules. Not persisted.
+         * @description Check a manually entered slip against pregame intake rules and store the result.
          */
         post: operations["intake_manual_api_v1_bet_slips_intake_manual_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bet-slips/intake/{trace_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Intake
+         * @description The stored intake result (editable legs, issues, normalized slip) for a trace ID.
+         */
+        get: operations["get_intake_api_v1_bet_slips_intake__trace_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -35,9 +55,51 @@ export interface paths {
         put?: never;
         /**
          * Intake Paste
-         * @description Parse pasted slip text into editable legs; resolve only exact, unique matches.
+         * @description Parse pasted slip text into editable legs; resolve only exact, unique provider matches.
+         *
+         *     If the provider catalog cannot be read, every leg stays unresolved with CATALOG_UNAVAILABLE.
          */
         post: operations["intake_paste_api_v1_bet_slips_intake_paste_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analyses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Analysis
+         * @description Analyze a RESOLVED stored slip and persist an immutable analysis record.
+         */
+        post: operations["create_analysis_api_v1_analyses_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analyses/{analysis_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Analysis
+         * @description A stored analysis exactly as saved, with every snapshot it cites.
+         */
+        get: operations["get_analysis_api_v1_analyses__analysis_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -85,6 +147,106 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AnalysisRecord
+         * @description A stored analysis with every snapshot it cites, as persisted (POST and GET are identical).
+         */
+        AnalysisRecord: {
+            analysis: components["schemas"]["AnalysisRun"];
+            /** Events */
+            events: components["schemas"]["Event"][];
+            /** Markets */
+            markets: components["schemas"]["Market"][];
+            /** Market Snapshots */
+            market_snapshots: components["schemas"]["MarketSnapshot"][];
+            /** Evidence Snapshots */
+            evidence_snapshots: components["schemas"]["EvidenceSnapshot"][];
+            /** Feature Snapshots */
+            feature_snapshots: components["schemas"]["FeatureSnapshot"][];
+            /**
+             * Provider Failures
+             * @description Every failed or stale provider call from all evidence snapshots.
+             */
+            provider_failures: components["schemas"]["ProviderFailure"][];
+        };
+        /**
+         * AnalysisRequest
+         * @description Analyze a stored, RESOLVED slip. Give exactly one of the two ids.
+         */
+        AnalysisRequest: {
+            /** Intake Trace Id */
+            intake_trace_id?: string | null;
+            /** Bet Slip Id */
+            bet_slip_id?: string | null;
+            /**
+             * Estimated Fees Usd
+             * @description Caller-supplied; fees are never assumed.
+             */
+            estimated_fees_usd?: number | string | null;
+            /**
+             * Estimated Slippage Usd
+             * @description Caller-supplied; slippage is never assumed.
+             */
+            estimated_slippage_usd?: number | string | null;
+        };
+        /**
+         * AnalysisRun
+         * @description Complete, auditable record of one analysis of one saved slip. Immutable once stored.
+         */
+        AnalysisRun: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id?: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * As Of Utc
+             * Format: date-time
+             * @description Data cutoff: nothing newer was used.
+             */
+            as_of_utc: string;
+            /**
+             * Bet Slip Id
+             * Format: uuid
+             */
+            bet_slip_id: string;
+            /** Intake Record Id */
+            intake_record_id?: string | null;
+            /**
+             * Code Version
+             * @description Git commit of the analysis code.
+             */
+            code_version: string;
+            /** Model Version */
+            model_version: string;
+            /** Legs */
+            legs: components["schemas"]["LegAnalysis"][];
+            /** @description Set only for 2+ legs. */
+            combo?: components["schemas"]["ComboAssessment"] | null;
+            expected_value?: components["schemas"]["ExpectedValue"] | null;
+            recommendation: components["schemas"]["RecommendationResult"];
+        };
+        /** ApiError */
+        ApiError: {
+            /**
+             * Trace Id
+             * Format: uuid
+             */
+            trace_id: string;
+            /**
+             * Received At Utc
+             * Format: date-time
+             */
+            received_at_utc: string;
+            code: components["schemas"]["ErrorCode"];
+            /** Message */
+            message: string;
+        };
         /** BetLeg */
         BetLeg: {
             sport: components["schemas"]["Sport"];
@@ -137,6 +299,61 @@ export interface components {
              */
             gross_payout_usd?: number | string | null;
         };
+        /**
+         * ClaimKind
+         * @enum {string}
+         */
+        ClaimKind: "CONFIRMED_FACT" | "PROJECTION" | "RUMOR" | "OPINION" | "INFERENCE";
+        /** ComboAssessment */
+        ComboAssessment: {
+            naive_baseline: components["schemas"]["NaiveIndependentBaseline"];
+            /**
+             * Warnings
+             * @default []
+             */
+            warnings: components["schemas"]["CorrelationWarning"][];
+            joint_probability: components["schemas"]["InsufficientData"];
+        };
+        /** CorrelationWarning */
+        CorrelationWarning: {
+            kind: components["schemas"]["DependencyKind"];
+            /** Leg Indices */
+            leg_indices: number[];
+            /** Explanation */
+            explanation: string;
+            /**
+             * Magnitude
+             * @default UNQUANTIFIED
+             * @constant
+             */
+            magnitude: "UNQUANTIFIED";
+        };
+        /**
+         * DependencyKind
+         * @enum {string}
+         */
+        DependencyKind: "SHARED_GAME" | "SAME_MARKET" | "SHARED_TEAM" | "SHARED_PLAYER" | "SHARED_WEATHER" | "GAME_SCRIPT" | "UNKNOWN_DEPENDENCY";
+        /**
+         * ErrorCode
+         * @enum {string}
+         */
+        ErrorCode: "NOT_FOUND" | "INTAKE_NOT_RESOLVED" | "PERSISTENCE_FAILED";
+        /**
+         * Event
+         * @description Canonical event identity. `event_id` is the id carried by `BetLeg.event_id`.
+         */
+        Event: {
+            /** Event Id */
+            event_id: string;
+            sport: components["schemas"]["Sport"];
+            /** League */
+            league: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** EventCandidate */
         EventCandidate: {
             /** Event Id */
@@ -150,9 +367,133 @@ export interface components {
              */
             event_start_utc: string;
             /** Home Participant */
-            home_participant: string;
+            home_participant?: string | null;
             /** Away Participant */
-            away_participant: string;
+            away_participant?: string | null;
+            /** Participants */
+            participants?: string[];
+        };
+        /**
+         * EvidenceCategory
+         * @enum {string}
+         */
+        EvidenceCategory: "MARKET" | "ODDS" | "STATS" | "NEWS" | "WEATHER" | "INJURY" | "LINEUP";
+        /** EvidenceItem */
+        EvidenceItem: {
+            /**
+             * Evidence Id
+             * @description SHA-256 of all other fields; auto-filled.
+             * @default
+             */
+            evidence_id: string;
+            /** Event Id */
+            event_id: string;
+            category: components["schemas"]["EvidenceCategory"];
+            claim_kind: components["schemas"]["ClaimKind"];
+            /** Extracted Fact */
+            extracted_fact: string;
+            /** Excerpt */
+            excerpt?: string | null;
+            source: components["schemas"]["SourceSnapshot"];
+            /**
+             * Derived From
+             * @description evidence_ids an INFERENCE was derived from.
+             * @default []
+             */
+            derived_from: string[];
+        };
+        /**
+         * EvidenceSnapshot
+         * @description The exact evidence used for one event at one moment. Never mutated; newer data = new one.
+         */
+        EvidenceSnapshot: {
+            /**
+             * Snapshot Id
+             * @description SHA-256 of all other fields; auto-filled.
+             * @default
+             */
+            snapshot_id: string;
+            /** Event Id */
+            event_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Items */
+            items: components["schemas"]["EvidenceItem"][];
+            /**
+             * Failures
+             * @default []
+             */
+            failures: components["schemas"]["ProviderFailure"][];
+        };
+        /** ExpectedValue */
+        ExpectedValue: {
+            costs: components["schemas"]["PositionCosts"];
+            /** Model Probability */
+            model_probability: number | string;
+            /**
+             * Break Even Probability
+             * @description May exceed 1: no probability breaks even.
+             */
+            break_even_probability: number | string;
+            /** Edge Probability Points */
+            edge_probability_points: number | string;
+            /** Expected Profit Usd */
+            expected_profit_usd: number | string;
+            /** Expected Return Pct */
+            expected_return_pct: number | string;
+        };
+        /**
+         * FeatureObservation
+         * @description One feature value. Set at most one of the two values; neither means "source says unknown".
+         */
+        FeatureObservation: {
+            /** Value Decimal */
+            value_decimal?: number | string | null;
+            /** Value Text */
+            value_text?: string | null;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /**
+             * Source Ref
+             * @description Evidence snapshot or source identifier.
+             */
+            source_ref: string;
+        };
+        /** FeatureSnapshot */
+        FeatureSnapshot: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id?: string;
+            /** Event Id */
+            event_id: string;
+            sport: components["schemas"]["Sport"];
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            /**
+             * Feature Set Version
+             * @description Sport adapter feature definition version.
+             */
+            feature_set_version: string;
+            /**
+             * Evidence Snapshot Id
+             * @description Evidence the features derive from.
+             */
+            evidence_snapshot_id?: string | null;
+            /** Features */
+            features: {
+                [key: string]: components["schemas"]["FeatureObservation"];
+            };
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -171,6 +512,20 @@ export interface components {
              * @enum {string}
              */
             database: "ok" | "unavailable";
+        };
+        /**
+         * InsufficientData
+         * @description No responsible estimate is possible; `reasons` says why, in plain language.
+         */
+        InsufficientData: {
+            /** Reasons */
+            reasons: string[];
+            /**
+             * Status
+             * @default INSUFFICIENT_DATA
+             * @constant
+             */
+            status: "INSUFFICIENT_DATA";
         };
         /**
          * IntakeError
@@ -229,6 +584,11 @@ export interface components {
             issues: components["schemas"]["IntakeIssue"][];
             /** @description Present only when state is RESOLVED; ready for analysis. */
             slip?: components["schemas"]["BetSlip"] | null;
+            /**
+             * Bet Slip Id
+             * @description Stored slip snapshot; present only when state is RESOLVED.
+             */
+            bet_slip_id?: string | null;
         };
         /**
          * IntakeState
@@ -239,7 +599,34 @@ export interface components {
          * IssueCode
          * @enum {string}
          */
-        IssueCode: "MALFORMED_INPUT" | "UNPARSEABLE_LEG" | "MISSING_FIELD" | "INVALID_SIDE" | "UNEXPECTED_LINE" | "EVENT_NOT_IDENTIFIED" | "EVENT_NOT_FOUND" | "AMBIGUOUS_EVENT" | "SETTLEMENT_UNCONFIRMED" | "UNSUPPORTED_STATUS" | "EVENT_STARTED";
+        IssueCode: "MALFORMED_INPUT" | "UNPARSEABLE_LEG" | "MISSING_FIELD" | "INVALID_SIDE" | "UNEXPECTED_LINE" | "EVENT_NOT_IDENTIFIED" | "EVENT_NOT_FOUND" | "CATALOG_UNAVAILABLE" | "AMBIGUOUS_EVENT" | "SETTLEMENT_UNCONFIRMED" | "UNSUPPORTED_STATUS" | "EVENT_STARTED";
+        /**
+         * LegAnalysis
+         * @description One leg's result plus the exact snapshots it was computed from.
+         */
+        LegAnalysis: {
+            /** Leg Index */
+            leg_index: number;
+            /** Market Implied Probability */
+            market_implied_probability: number | string;
+            /**
+             * Consensus Probability
+             * @description De-vigged external consensus, when books were available.
+             */
+            consensus_probability?: number | string | null;
+            estimate?: components["schemas"]["LegEstimate"] | null;
+            insufficient_data?: components["schemas"]["InsufficientData"] | null;
+            /** Edge Probability Points */
+            edge_probability_points?: number | string | null;
+            /** Event Snapshot Id */
+            event_snapshot_id?: string | null;
+            /** Market Snapshot Id */
+            market_snapshot_id?: string | null;
+            /** Evidence Snapshot Id */
+            evidence_snapshot_id?: string | null;
+            /** Feature Snapshot Id */
+            feature_snapshot_id?: string | null;
+        };
         /**
          * LegDraft
          * @description Editable leg. Fields mirror BetLeg; unknown values stay null rather than guessed.
@@ -277,395 +664,6 @@ export interface components {
             /** Candidates */
             candidates?: components["schemas"]["EventCandidate"][];
         };
-        /**
-         * LegStatus
-         * @enum {string}
-         */
-        LegStatus: "PREGAME" | "LIVE" | "COMPLETED" | "POSTPONED" | "CANCELED" | "UNSUPPORTED";
-        /**
-         * MarketType
-         * @enum {string}
-         */
-        MarketType: "MONEYLINE" | "SPREAD" | "TOTAL" | "PLAYER_PROP";
-        /** PasteIntakeRequest */
-        PasteIntakeRequest: {
-            /**
-             * Text
-             * @description Verbatim pasted slip text.
-             */
-            text: string;
-            /** Stake Usd */
-            stake_usd: number | string;
-            /** Gross Payout Usd */
-            gross_payout_usd?: number | string | null;
-        };
-        /**
-         * Side
-         * @enum {string}
-         */
-        Side: "HOME" | "AWAY" | "DRAW" | "OVER" | "UNDER" | "YES" | "NO";
-        /**
-         * Sport
-         * @enum {string}
-         */
-        Sport: "NFL" | "NCAAF" | "MLB" | "SOCCER";
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
-        };
-        /**
-         * AnalysisRef
-         * @description Stable reference a future paper trade points at; carries no paper-trade behavior.
-         */
-        AnalysisRef: {
-            /**
-             * Analysis Id
-             * Format: uuid
-             */
-            analysis_id: string;
-            /**
-             * Bet Slip Id
-             * Format: uuid
-             */
-            bet_slip_id: string;
-            /**
-             * As Of Utc
-             * Format: date-time
-             */
-            as_of_utc: string;
-            recommendation: components["schemas"]["Recommendation"];
-        };
-        /**
-         * AnalysisRun
-         * @description Complete, auditable record of one analysis of one saved slip. Immutable once stored.
-         */
-        AnalysisRun: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id?: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * As Of Utc
-             * Format: date-time
-             * @description Data cutoff: nothing newer was used.
-             */
-            as_of_utc: string;
-            /**
-             * Bet Slip Id
-             * Format: uuid
-             */
-            bet_slip_id: string;
-            /**
-             * Intake Record Id
-             * @default null
-             */
-            intake_record_id: string | null;
-            /**
-             * Code Version
-             * @description Git commit of the analysis code.
-             */
-            code_version: string;
-            /** Model Version */
-            model_version: string;
-            /** Legs */
-            legs: components["schemas"]["LegAnalysis"][];
-            /**
-             * @description Set only for 2+ legs.
-             * @default null
-             */
-            combo: components["schemas"]["ComboAssessment"] | null;
-            /** @default null */
-            expected_value: components["schemas"]["ExpectedValue"] | null;
-            recommendation: components["schemas"]["RecommendationResult"];
-        };
-        /**
-         * ClaimKind
-         * @enum {string}
-         */
-        ClaimKind: "CONFIRMED_FACT" | "PROJECTION" | "RUMOR" | "OPINION" | "INFERENCE";
-        /** ComboAssessment */
-        ComboAssessment: {
-            naive_baseline: components["schemas"]["NaiveIndependentBaseline"];
-            /**
-             * Warnings
-             * @default []
-             */
-            warnings: components["schemas"]["CorrelationWarning"][];
-            joint_probability: components["schemas"]["InsufficientData"];
-        };
-        /** CorrelationWarning */
-        CorrelationWarning: {
-            kind: components["schemas"]["DependencyKind"];
-            /** Leg Indices */
-            leg_indices: number[];
-            /** Explanation */
-            explanation: string;
-            /**
-             * Magnitude
-             * @default UNQUANTIFIED
-             * @constant
-             */
-            magnitude: "UNQUANTIFIED";
-        };
-        /**
-         * DependencyKind
-         * @enum {string}
-         */
-        DependencyKind: "SHARED_GAME" | "SAME_MARKET" | "SHARED_TEAM" | "SHARED_PLAYER" | "SHARED_WEATHER" | "GAME_SCRIPT" | "UNKNOWN_DEPENDENCY";
-        /**
-         * Event
-         * @description Canonical event identity. `event_id` is the id carried by `BetLeg.event_id`.
-         */
-        Event: {
-            /** Event Id */
-            event_id: string;
-            sport: components["schemas"]["Sport"];
-            /** League */
-            league: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
-        /** EventSnapshot */
-        EventSnapshot: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id?: string;
-            /** Event Id */
-            event_id: string;
-            /**
-             * Captured At
-             * Format: date-time
-             */
-            captured_at: string;
-            /**
-             * Event Start Utc
-             * Format: date-time
-             */
-            event_start_utc: string;
-            status: components["schemas"]["LegStatus"];
-            /**
-             * Home Participant
-             * @default null
-             */
-            home_participant: string | null;
-            /**
-             * Away Participant
-             * @default null
-             */
-            away_participant: string | null;
-            source: components["schemas"]["SourceSnapshot"];
-        };
-        /**
-         * EvidenceCategory
-         * @enum {string}
-         */
-        EvidenceCategory: "MARKET" | "ODDS" | "STATS" | "NEWS" | "WEATHER" | "INJURY" | "LINEUP";
-        /** EvidenceItem */
-        EvidenceItem: {
-            /**
-             * Evidence Id
-             * @description SHA-256 of all other fields; auto-filled.
-             * @default
-             */
-            evidence_id: string;
-            /** Event Id */
-            event_id: string;
-            category: components["schemas"]["EvidenceCategory"];
-            claim_kind: components["schemas"]["ClaimKind"];
-            /** Extracted Fact */
-            extracted_fact: string;
-            /**
-             * Excerpt
-             * @default null
-             */
-            excerpt: string | null;
-            source: components["schemas"]["SourceSnapshot"];
-            /**
-             * Derived From
-             * @description evidence_ids an INFERENCE was derived from.
-             * @default []
-             */
-            derived_from: string[];
-        };
-        /**
-         * EvidenceSnapshot
-         * @description The exact evidence used for one event at one moment. Never mutated; newer data = new one.
-         */
-        EvidenceSnapshot: {
-            /**
-             * Snapshot Id
-             * @description SHA-256 of all other fields; auto-filled.
-             * @default
-             */
-            snapshot_id: string;
-            /** Event Id */
-            event_id: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Items */
-            items: components["schemas"]["EvidenceItem"][];
-            /**
-             * Failures
-             * @default []
-             */
-            failures: components["schemas"]["ProviderFailure"][];
-        };
-        /** ExpectedValue */
-        ExpectedValue: {
-            costs: components["schemas"]["PositionCosts"];
-            /** Model Probability */
-            model_probability: number | string;
-            /**
-             * Break Even Probability
-             * @description May exceed 1: no probability breaks even.
-             */
-            break_even_probability: number | string;
-            /** Edge Probability Points */
-            edge_probability_points: number | string;
-            /** Expected Profit Usd */
-            expected_profit_usd: number | string;
-            /** Expected Return Pct */
-            expected_return_pct: number | string;
-        };
-        /**
-         * FeatureObservation
-         * @description One feature value. Set at most one of the two values; neither means "source says unknown".
-         */
-        FeatureObservation: {
-            /**
-             * Value Decimal
-             * @default null
-             */
-            value_decimal: number | string | null;
-            /**
-             * Value Text
-             * @default null
-             */
-            value_text: string | null;
-            /**
-             * Observed At
-             * Format: date-time
-             */
-            observed_at: string;
-            /**
-             * Source Ref
-             * @description Evidence snapshot or source identifier.
-             */
-            source_ref: string;
-        };
-        /** FeatureSnapshot */
-        FeatureSnapshot: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id?: string;
-            /** Event Id */
-            event_id: string;
-            sport: components["schemas"]["Sport"];
-            /**
-             * Captured At
-             * Format: date-time
-             */
-            captured_at: string;
-            /**
-             * Feature Set Version
-             * @description Sport adapter feature definition version.
-             */
-            feature_set_version: string;
-            /**
-             * Evidence Snapshot Id
-             * @description Evidence the features derive from.
-             * @default null
-             */
-            evidence_snapshot_id: string | null;
-            /** Features */
-            features: {
-                [key: string]: components["schemas"]["FeatureObservation"];
-            };
-        };
-        /**
-         * InsufficientData
-         * @description No responsible estimate is possible; `reasons` says why, in plain language.
-         */
-        InsufficientData: {
-            /** Reasons */
-            reasons: string[];
-            /**
-             * Status
-             * @default INSUFFICIENT_DATA
-             * @constant
-             */
-            status: "INSUFFICIENT_DATA";
-        };
-        /**
-         * LegAnalysis
-         * @description One leg's result plus the exact snapshots it was computed from.
-         */
-        LegAnalysis: {
-            /** Leg Index */
-            leg_index: number;
-            /** Market Implied Probability */
-            market_implied_probability: number | string;
-            /**
-             * Consensus Probability
-             * @description De-vigged external consensus, when books were available.
-             * @default null
-             */
-            consensus_probability: number | string | null;
-            /** @default null */
-            estimate: components["schemas"]["LegEstimate"] | null;
-            /** @default null */
-            insufficient_data: components["schemas"]["InsufficientData"] | null;
-            /**
-             * Edge Probability Points
-             * @default null
-             */
-            edge_probability_points: number | string | null;
-            /**
-             * Event Snapshot Id
-             * @default null
-             */
-            event_snapshot_id: string | null;
-            /**
-             * Market Snapshot Id
-             * @default null
-             */
-            market_snapshot_id: string | null;
-            /**
-             * Evidence Snapshot Id
-             * @default null
-             */
-            evidence_snapshot_id: string | null;
-            /**
-             * Feature Snapshot Id
-             * @default null
-             */
-            feature_snapshot_id: string | null;
-        };
         /** LegEstimate */
         LegEstimate: {
             /** Model Probability */
@@ -680,6 +678,11 @@ export interface components {
             snapshot_captured_at_utc: string;
         };
         /**
+         * LegStatus
+         * @enum {string}
+         */
+        LegStatus: "PREGAME" | "LIVE" | "COMPLETED" | "POSTPONED" | "CANCELED" | "UNSUPPORTED";
+        /**
          * Market
          * @description Provider market identity. A different line is a different market.
          */
@@ -690,26 +693,14 @@ export interface components {
             market_id: string;
             /** Event Id */
             event_id: string;
-            /**
-             * @description None when the provider type has no normalized equivalent.
-             * @default null
-             */
-            market_type: components["schemas"]["MarketType"] | null;
-            /**
-             * Provider Market Type
-             * @default null
-             */
-            provider_market_type: string | null;
-            /**
-             * Line
-             * @default null
-             */
-            line: number | string | null;
-            /**
-             * Slug
-             * @default null
-             */
-            slug: string | null;
+            /** @description None when the provider type has no normalized equivalent. */
+            market_type?: components["schemas"]["MarketType"] | null;
+            /** Provider Market Type */
+            provider_market_type?: string | null;
+            /** Line */
+            line?: number | string | null;
+            /** Slug */
+            slug?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -720,27 +711,17 @@ export interface components {
         MarketSideQuote: {
             /** Side Id */
             side_id: string;
-            /**
-             * Description
-             * @default null
-             */
-            description: string | null;
-            /**
-             * Is Long
-             * @default null
-             */
-            is_long: boolean | null;
+            /** Description */
+            description?: string | null;
+            /** Is Long */
+            is_long?: boolean | null;
             /**
              * Price Usd
              * @description Per-share price in USD; None if unusable.
-             * @default null
              */
-            price_usd: number | string | null;
-            /**
-             * Tradable
-             * @default null
-             */
-            tradable: boolean | null;
+            price_usd?: number | string | null;
+            /** Tradable */
+            tradable?: boolean | null;
         };
         /**
          * MarketSnapshot
@@ -761,33 +742,18 @@ export interface components {
              * Format: date-time
              */
             captured_at: string;
-            /**
-             * Title
-             * @default null
-             */
-            title: string | null;
+            /** Title */
+            title?: string | null;
             /** Is Open */
             is_open: boolean;
-            /**
-             * Combo Enabled
-             * @default null
-             */
-            combo_enabled: boolean | null;
-            /**
-             * Best Bid Usd
-             * @default null
-             */
-            best_bid_usd: number | string | null;
-            /**
-             * Best Ask Usd
-             * @default null
-             */
-            best_ask_usd: number | string | null;
-            /**
-             * Fee Coefficient
-             * @default null
-             */
-            fee_coefficient: number | string | null;
+            /** Combo Enabled */
+            combo_enabled?: boolean | null;
+            /** Best Bid Usd */
+            best_bid_usd?: number | string | null;
+            /** Best Ask Usd */
+            best_ask_usd?: number | string | null;
+            /** Fee Coefficient */
+            fee_coefficient?: number | string | null;
             /**
              * Sides
              * @default []
@@ -800,6 +766,11 @@ export interface components {
             warnings: string[];
             source: components["schemas"]["SourceSnapshot"];
         };
+        /**
+         * MarketType
+         * @enum {string}
+         */
+        MarketType: "MONEYLINE" | "SPREAD" | "TOTAL" | "PLAYER_PROP";
         /**
          * NaiveIndependentBaseline
          * @description Product of leg probabilities. A comparison baseline only, never a recommendation input.
@@ -818,6 +789,18 @@ export interface components {
              * @default treats legs as independent; wrong whenever legs share a dependency
              */
             assumption: string;
+        };
+        /** PasteIntakeRequest */
+        PasteIntakeRequest: {
+            /**
+             * Text
+             * @description Verbatim pasted slip text.
+             */
+            text: string;
+            /** Stake Usd */
+            stake_usd: number | string;
+            /** Gross Payout Usd */
+            gross_payout_usd?: number | string | null;
         };
         /** PositionCosts */
         PositionCosts: {
@@ -864,9 +847,13 @@ export interface components {
              * @description One sentence.
              */
             reason: string;
-            /** @default null */
-            insufficient_data: components["schemas"]["InsufficientData"] | null;
+            insufficient_data?: components["schemas"]["InsufficientData"] | null;
         };
+        /**
+         * Side
+         * @enum {string}
+         */
+        Side: "HOME" | "AWAY" | "DRAW" | "OVER" | "UNDER" | "YES" | "NO";
         /**
          * SourceSnapshot
          * @description Where a fact, quote, or event state came from and when it was retrieved.
@@ -884,26 +871,94 @@ export interface components {
             /**
              * Published At
              * @description When the source says.
-             * @default null
              */
-            published_at: string | null;
+            published_at?: string | null;
             /**
              * Retrieved At
              * Format: date-time
              */
             retrieved_at: string;
-            /**
-             * Content Sha256
-             * @default null
-             */
-            content_sha256: string | null;
+            /** Content Sha256 */
+            content_sha256?: string | null;
         };
+        /**
+         * Sport
+         * @enum {string}
+         */
+        Sport: "NFL" | "NCAAF" | "MLB" | "SOCCER";
         /** UncertaintyInterval */
         UncertaintyInterval: {
             /** Low */
             low: number | string;
             /** High */
             high: number | string;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
+        };
+        /**
+         * AnalysisRef
+         * @description Stable reference a future paper trade points at; carries no paper-trade behavior.
+         */
+        AnalysisRef: {
+            /**
+             * Analysis Id
+             * Format: uuid
+             */
+            analysis_id: string;
+            /**
+             * Bet Slip Id
+             * Format: uuid
+             */
+            bet_slip_id: string;
+            /**
+             * As Of Utc
+             * Format: date-time
+             */
+            as_of_utc: string;
+            recommendation: components["schemas"]["Recommendation"];
+        };
+        /** EventSnapshot */
+        EventSnapshot: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id?: string;
+            /** Event Id */
+            event_id: string;
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            /**
+             * Event Start Utc
+             * Format: date-time
+             */
+            event_start_utc: string;
+            status: components["schemas"]["LegStatus"];
+            /**
+             * Home Participant
+             * @default null
+             */
+            home_participant: string | null;
+            /**
+             * Away Participant
+             * @default null
+             */
+            away_participant: string | null;
+            source: components["schemas"]["SourceSnapshot"];
         };
     };
     responses: never;
@@ -947,6 +1002,46 @@ export interface operations {
             };
         };
     };
+    get_intake_api_v1_bet_slips_intake__trace_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeResult"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeError"];
+                };
+            };
+        };
+    };
     intake_paste_api_v1_bet_slips_intake_paste_post: {
         parameters: {
             query?: never;
@@ -976,6 +1071,115 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IntakeError"];
+                };
+            };
+        };
+    };
+    create_analysis_api_v1_analyses_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisRecord"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get_analysis_api_v1_analyses__analysis_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisRecord"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
         };
