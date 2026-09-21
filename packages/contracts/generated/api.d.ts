@@ -4,6 +4,46 @@
  */
 
 export interface paths {
+    "/api/v1/bet-slips/intake/manual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Intake Manual
+         * @description Check a manually entered slip against pregame intake rules. Not persisted.
+         */
+        post: operations["intake_manual_api_v1_bet_slips_intake_manual_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bet-slips/intake/paste": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Intake Paste
+         * @description Parse pasted slip text into editable legs; resolve only exact, unique matches.
+         */
+        post: operations["intake_paste_api_v1_bet_slips_intake_paste_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -97,6 +137,23 @@ export interface components {
              */
             gross_payout_usd?: number | string | null;
         };
+        /** EventCandidate */
+        EventCandidate: {
+            /** Event Id */
+            event_id: string;
+            sport: components["schemas"]["Sport"];
+            /** League */
+            league: string;
+            /**
+             * Event Start Utc
+             * Format: date-time
+             */
+            event_start_utc: string;
+            /** Home Participant */
+            home_participant: string;
+            /** Away Participant */
+            away_participant: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -116,6 +173,111 @@ export interface components {
             database: "ok" | "unavailable";
         };
         /**
+         * IntakeError
+         * @description Provider-independent error envelope for requests that cannot be read at all.
+         */
+        IntakeError: {
+            /**
+             * Trace Id
+             * Format: uuid
+             */
+            trace_id: string;
+            /**
+             * Received At Utc
+             * Format: date-time
+             */
+            received_at_utc: string;
+            code: components["schemas"]["IssueCode"];
+            /** Message */
+            message: string;
+            /** Issues */
+            issues: components["schemas"]["IntakeIssue"][];
+        };
+        /** IntakeIssue */
+        IntakeIssue: {
+            code: components["schemas"]["IssueCode"];
+            /** Message */
+            message: string;
+            /** Leg Index */
+            leg_index?: number | null;
+            /** Field */
+            field?: string | null;
+        };
+        /** IntakeResult */
+        IntakeResult: {
+            /**
+             * Trace Id
+             * Format: uuid
+             */
+            trace_id: string;
+            /**
+             * Received At Utc
+             * Format: date-time
+             */
+            received_at_utc: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "manual" | "paste";
+            state: components["schemas"]["IntakeState"];
+            /** Original Input */
+            original_input: string | null;
+            /** Legs */
+            legs: components["schemas"]["LegDraft"][];
+            /** Issues */
+            issues: components["schemas"]["IntakeIssue"][];
+            /** @description Present only when state is RESOLVED; ready for analysis. */
+            slip?: components["schemas"]["BetSlip"] | null;
+        };
+        /**
+         * IntakeState
+         * @enum {string}
+         */
+        IntakeState: "RESOLVED" | "NEEDS_RESOLUTION" | "REJECTED";
+        /**
+         * IssueCode
+         * @enum {string}
+         */
+        IssueCode: "MALFORMED_INPUT" | "UNPARSEABLE_LEG" | "MISSING_FIELD" | "INVALID_SIDE" | "UNEXPECTED_LINE" | "EVENT_NOT_IDENTIFIED" | "EVENT_NOT_FOUND" | "AMBIGUOUS_EVENT" | "SETTLEMENT_UNCONFIRMED" | "UNSUPPORTED_STATUS" | "EVENT_STARTED";
+        /**
+         * LegDraft
+         * @description Editable leg. Fields mirror BetLeg; unknown values stay null rather than guessed.
+         */
+        LegDraft: {
+            /** Index */
+            index: number;
+            state: components["schemas"]["IntakeState"];
+            /** Raw Text */
+            raw_text?: string | null;
+            sport?: components["schemas"]["Sport"] | null;
+            /** League */
+            league?: string | null;
+            /** Event Id */
+            event_id?: string | null;
+            /** Event Start Utc */
+            event_start_utc?: string | null;
+            /** Home Participant */
+            home_participant?: string | null;
+            /** Away Participant */
+            away_participant?: string | null;
+            /** Player Id */
+            player_id?: string | null;
+            market_type?: components["schemas"]["MarketType"] | null;
+            side?: components["schemas"]["Side"] | null;
+            /** Line */
+            line?: number | string | null;
+            /** Polymarket Market Id */
+            polymarket_market_id?: string | null;
+            /** Market Price Usd */
+            market_price_usd?: number | string | null;
+            /** Settlement Rule Ref */
+            settlement_rule_ref?: string | null;
+            status?: components["schemas"]["LegStatus"] | null;
+            /** Candidates */
+            candidates?: components["schemas"]["EventCandidate"][];
+        };
+        /**
          * LegStatus
          * @enum {string}
          */
@@ -125,6 +287,18 @@ export interface components {
          * @enum {string}
          */
         MarketType: "MONEYLINE" | "SPREAD" | "TOTAL" | "PLAYER_PROP";
+        /** PasteIntakeRequest */
+        PasteIntakeRequest: {
+            /**
+             * Text
+             * @description Verbatim pasted slip text.
+             */
+            text: string;
+            /** Stake Usd */
+            stake_usd: number | string;
+            /** Gross Payout Usd */
+            gross_payout_usd?: number | string | null;
+        };
         /**
          * Side
          * @enum {string}
@@ -157,6 +331,72 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    intake_manual_api_v1_bet_slips_intake_manual_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BetSlip"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeResult"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeError"];
+                };
+            };
+        };
+    };
+    intake_paste_api_v1_bet_slips_intake_paste_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasteIntakeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeResult"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeError"];
+                };
+            };
+        };
+    };
     health_api_health_get: {
         parameters: {
             query?: never;

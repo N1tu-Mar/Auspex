@@ -5,6 +5,84 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/bet-slips/intake/manual": {
+      "post": {
+        "summary": "Intake Manual",
+        "description": "Check a manually entered slip against pregame intake rules. Not persisted.",
+        "operationId": "intake_manual_api_v1_bet_slips_intake_manual_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BetSlip"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bet-slips/intake/paste": {
+      "post": {
+        "summary": "Intake Paste",
+        "description": "Parse pasted slip text into editable legs; resolve only exact, unique matches.",
+        "operationId": "intake_paste_api_v1_bet_slips_intake_paste_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasteIntakeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Health",
@@ -261,6 +339,45 @@
         ],
         "title": "BetSlip"
       },
+      "EventCandidate": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "sport": {
+            "$ref": "#/components/schemas/Sport"
+          },
+          "league": {
+            "type": "string",
+            "title": "League"
+          },
+          "event_start_utc": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Event Start Utc"
+          },
+          "home_participant": {
+            "type": "string",
+            "title": "Home Participant"
+          },
+          "away_participant": {
+            "type": "string",
+            "title": "Away Participant"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_id",
+          "sport",
+          "league",
+          "event_start_utc",
+          "home_participant",
+          "away_participant"
+        ],
+        "title": "EventCandidate"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -297,6 +414,380 @@
         ],
         "title": "HealthResponse"
       },
+      "IntakeError": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trace Id"
+          },
+          "received_at_utc": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Received At Utc"
+          },
+          "code": {
+            "$ref": "#/components/schemas/IssueCode"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/IntakeIssue"
+            },
+            "type": "array",
+            "title": "Issues"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "trace_id",
+          "received_at_utc",
+          "code",
+          "message",
+          "issues"
+        ],
+        "title": "IntakeError",
+        "description": "Provider-independent error envelope for requests that cannot be read at all."
+      },
+      "IntakeIssue": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/IssueCode"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "leg_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leg Index"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "IntakeIssue"
+      },
+      "IntakeResult": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trace Id"
+          },
+          "received_at_utc": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Received At Utc"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "paste"
+            ],
+            "title": "Source"
+          },
+          "state": {
+            "$ref": "#/components/schemas/IntakeState"
+          },
+          "original_input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Input"
+          },
+          "legs": {
+            "items": {
+              "$ref": "#/components/schemas/LegDraft"
+            },
+            "type": "array",
+            "title": "Legs"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/IntakeIssue"
+            },
+            "type": "array",
+            "title": "Issues"
+          },
+          "slip": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BetSlip"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present only when state is RESOLVED; ready for analysis."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "trace_id",
+          "received_at_utc",
+          "source",
+          "state",
+          "original_input",
+          "legs",
+          "issues"
+        ],
+        "title": "IntakeResult"
+      },
+      "IntakeState": {
+        "type": "string",
+        "enum": [
+          "RESOLVED",
+          "NEEDS_RESOLUTION",
+          "REJECTED"
+        ],
+        "title": "IntakeState"
+      },
+      "IssueCode": {
+        "type": "string",
+        "enum": [
+          "MALFORMED_INPUT",
+          "UNPARSEABLE_LEG",
+          "MISSING_FIELD",
+          "INVALID_SIDE",
+          "UNEXPECTED_LINE",
+          "EVENT_NOT_IDENTIFIED",
+          "EVENT_NOT_FOUND",
+          "AMBIGUOUS_EVENT",
+          "SETTLEMENT_UNCONFIRMED",
+          "UNSUPPORTED_STATUS",
+          "EVENT_STARTED"
+        ],
+        "title": "IssueCode"
+      },
+      "LegDraft": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "state": {
+            "$ref": "#/components/schemas/IntakeState"
+          },
+          "raw_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Text"
+          },
+          "sport": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "league": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "League"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "event_start_utc": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Start Utc"
+          },
+          "home_participant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Participant"
+          },
+          "away_participant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Away Participant"
+          },
+          "player_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Id"
+          },
+          "market_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarketType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "side": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Side"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "polymarket_market_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polymarket Market Id"
+          },
+          "market_price_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Price Usd"
+          },
+          "settlement_rule_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settlement Rule Ref"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LegStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/EventCandidate"
+            },
+            "type": "array",
+            "title": "Candidates"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "index",
+          "state"
+        ],
+        "title": "LegDraft",
+        "description": "Editable leg. Fields mirror BetLeg; unknown values stay null rather than guessed."
+      },
       "LegStatus": {
         "type": "string",
         "enum": [
@@ -318,6 +809,53 @@
           "PLAYER_PROP"
         ],
         "title": "MarketType"
+      },
+      "PasteIntakeRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text",
+            "description": "Verbatim pasted slip text."
+          },
+          "stake_usd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)"
+              }
+            ],
+            "title": "Stake Usd"
+          },
+          "gross_payout_usd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gross Payout Usd"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text",
+          "stake_usd"
+        ],
+        "title": "PasteIntakeRequest"
       },
       "Side": {
         "type": "string",
