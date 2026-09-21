@@ -1,0 +1,3 @@
+# Optional local configuration copied into Codex-managed worktrees when present.
+.env
+.env.local
