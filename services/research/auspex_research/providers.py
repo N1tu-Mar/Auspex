@@ -79,6 +79,47 @@ class EventRef(BaseModel):
         return value.astimezone(UTC)
 
 
+class MarketSideQuote(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    side_id: str
+    description: str | None
+    is_long: bool | None
+    price_usd: Decimal | None = Field(gt=0, lt=1, description="Per-share price; None if unusable.")
+    tradable: bool | None
+
+
+class NormalizedMarket(BaseModel):
+    """Provider-neutral view of one prediction market. Unknowns stay None and add a warning."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    provider: str
+    market_id: str
+    slug: str | None
+    title: str | None
+    market_type: MarketType | None
+    provider_market_type: str | None
+    line: Decimal | None
+    event_start_utc: AwareDatetime | None
+    is_open: bool
+    combo_enabled: bool | None
+    best_bid_usd: Decimal | None
+    best_ask_usd: Decimal | None
+    fee_coefficient: Decimal | None
+    sides: tuple[MarketSideQuote, ...]
+    source_url: str
+    retrieved_at: AwareDatetime
+    warnings: tuple[str, ...] = ()
+
+
+class PolymarketProvider(Protocol):
+    source: SourceIdentity
+    cache_policy: CachePolicy
+
+    async def get_market_by_slug(self, slug: str) -> ProviderResponse[NormalizedMarket]: ...
+
+
 class OddsObservation(BaseModel):
     """One sportsbook price at one moment. De-vigging happens in the prediction stream."""
 
