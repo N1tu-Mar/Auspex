@@ -21,13 +21,14 @@ function setup(...replies: (Response | Error | "hang")[]) {
     else fetch.mockResolvedValueOnce(reply);
   }
   vi.stubGlobal("fetch", fetch);
+  const onContinue = vi.fn();
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <NewAnalysis />
+      <NewAnalysis onContinue={onContinue} />
     </QueryClientProvider>,
   );
   const body = (call: number) => JSON.parse(fetch.mock.calls[call]?.[1].body);
-  return { fetch, body, user: userEvent.setup() };
+  return { fetch, body, onContinue, user: userEvent.setup() };
 }
 
 const base = {
@@ -98,12 +99,15 @@ test("pasted text becomes an editable leg, then a resolved slip for review", asy
     issues: [],
     slip,
   };
-  const { user, body } = setup(json(notFound), json(resolved));
+  const { user, body, onContinue } = setup(json(notFound), json(resolved));
 
   await pasteSlip(user);
   expect(body(0)).toEqual({ text: "Chiefs ML @ 0.56", stake_usd: "25", gross_payout_usd: null });
   expect(await screen.findByText("No known event matches Chiefs.")).toBeTruthy();
-  expect(screen.getAllByText("Needs resolution")).toHaveLength(2);
+  const check = screen.getByRole("complementary", { name: "Intake check" });
+  expect(within(check).getByText("Needs resolution")).toBeTruthy();
+  expect(within(check).getByText("From pasted text")).toBeTruthy();
+  expect(within(check).getByText(/No live event catalog is connected yet/)).toBeTruthy();
   expect(screen.getByText("Pasted: Chiefs ML @ 0.56")).toBeTruthy();
   expect((screen.getByLabelText("Market type") as HTMLSelectElement).value).toBe("MONEYLINE");
   expect((screen.getByLabelText("Price (USD)") as HTMLInputElement).value).toBe("0.56");
@@ -141,12 +145,15 @@ test("pasted text becomes an editable leg, then a resolved slip for review", asy
   expect(within(row).getByText("Buffalo Bills at Kansas City Chiefs")).toBeTruthy();
   expect(within(row).getByText("NFL · 2026-09-27 20:25 UTC")).toBeTruthy();
   expect(within(row).getByText("0.56")).toBeTruthy();
+  expect(within(row).getByText("Moneyline · Home")).toBeTruthy();
+  expect(within(row).getByText("pm-us:nfl-ml-v1")).toBeTruthy();
+  expect(within(row).getByText("Pregame ·", { exact: false })).toBeTruthy();
   expect(within(review).getByRole("rowheader", { name: "Stake (USD)" })).toBeTruthy();
   expect(within(review).getByText("Not quoted")).toBeTruthy();
   expect(screen.getByText(/Checked 2026-09-21 14:02:11 UTC · manual/)).toBeTruthy();
-  expect(
-    (within(review).getByRole("button", { name: "Run analysis" }) as HTMLButtonElement).disabled,
-  ).toBe(true);
+  expect(within(review).getByText(/reports\s+INSUFFICIENT_DATA/)).toBeTruthy();
+  await user.click(within(review).getByRole("button", { name: "Open analysis workspace" }));
+  expect(onContinue).toHaveBeenCalledWith(resolved);
   expect(screen.queryByText(/probability of/i)).toBeNull();
 
   await user.clear(screen.getByLabelText("Price (USD)"));
@@ -209,6 +216,9 @@ test("live markets are rejected and labelled unsupported", async () => {
   await pasteSlip(user);
 
   expect(await screen.findByText(/Only pregame markets are supported/)).toBeTruthy();
+  const check = screen.getByRole("complementary", { name: "Intake check" });
+  expect(within(check).getByText("How to fix")).toBeTruthy();
+  expect(within(check).getByText(/set status to Pregame; otherwise remove the leg/)).toBeTruthy();
   expect(screen.getAllByText("Rejected").length).toBeGreaterThan(0);
   const status = screen.getByLabelText("Market status");
   expect(status.getAttribute("aria-invalid")).toBe("true");
@@ -279,14 +289,17 @@ test("invalid input is caught before any request", async () => {
 });
 
 test("shows loading while the intake service works", async () => {
-  const { user } = setup("hang");
+  const { user, fetch } = setup("hang");
   await pasteSlip(user);
   expect(await screen.findByText("Checking with the intake service…")).toBeTruthy();
-  const parse = screen.getByRole("button", { name: "Parsing…" }) as HTMLButtonElement;
-  expect(parse.disabled).toBe(true);
-  expect((screen.getByRole("button", { name: "Check legs" }) as HTMLButtonElement).disabled).toBe(
-    true,
+  // aria-disabled, not disabled, so keyboard focus stays on the button while pending.
+  const parse = screen.getByRole("button", { name: "Parsing…" });
+  expect(parse.getAttribute("aria-disabled")).toBe("true");
+  expect(screen.getByRole("button", { name: "Check legs" }).getAttribute("aria-disabled")).toBe(
+    "true",
   );
+  await user.click(parse);
+  expect(fetch).toHaveBeenCalledTimes(1);
 });
 
 test("legs can be added and removed by hand", async () => {
@@ -296,4 +309,44 @@ test("legs can be added and removed by hand", async () => {
   expect(screen.getAllByRole("group", { name: /^Leg \d$/ })).toHaveLength(2);
   await user.click(screen.getByRole("button", { name: "Remove leg 1" }));
   expect(screen.getAllByRole("group", { name: /^Leg \d$/ })).toHaveLength(1);
+});
+
+test("a partly resolved combo says which legs are ready without guessing the rest", async () => {
+  const partial: IntakeResult = {
+    ...notFound,
+    original_input: "Chiefs ML @ 0.56; Chiefs to win big",
+    legs: [
+      {
+        index: 0,
+        state: "RESOLVED",
+        raw_text: "Chiefs ML @ 0.56",
+        ...candidate,
+        event_id: "evt-kc-buf",
+        market_type: "MONEYLINE",
+        side: "HOME",
+        market_price_usd: "0.56",
+        settlement_rule_ref: "pm-us:nfl-ml-v1",
+        status: "PREGAME",
+      },
+      { index: 1, state: "NEEDS_RESOLUTION", raw_text: "Chiefs to win big" },
+    ],
+    issues: [
+      {
+        code: "UNPARSEABLE_LEG",
+        message: "Use 'Team ML', 'Team -3.5', or 'Team A/Team B over 47.5', each with '@ price'.",
+        leg_index: 1,
+      },
+    ],
+  };
+  const { user } = setup(json(partial));
+  await pasteSlip(user, "Chiefs ML @ 0.56; Chiefs to win big");
+
+  expect(await screen.findByText(/Partly resolved: 1 of 2 legs are ready/)).toBeTruthy();
+  const review = screen.getByRole("region", { name: "Intake legs" });
+  const rows = within(review).getAllByRole("row");
+  expect(within(rows[1] as HTMLElement).getByText("Resolved")).toBeTruthy();
+  expect(within(rows[2] as HTMLElement).getByText("Chiefs to win big")).toBeTruthy();
+  expect(within(rows[2] as HTMLElement).getByText("Market not set · side not set")).toBeTruthy();
+  expect(within(rows[2] as HTMLElement).getByText("Unconfirmed")).toBeTruthy();
+  expect(screen.queryByRole("region", { name: "Resolved slip" })).toBeNull();
 });

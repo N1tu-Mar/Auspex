@@ -2,8 +2,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { FormProvider, useFieldArray, useForm, useFormContext, useWatch } from "react-hook-form";
-import { type BetSlip, type IntakeIssue, intakeManual, intakePaste, type Schemas } from "./api";
-import { type Check, CheckPanel, IssueLine, utc } from "./CheckPanel";
+import {
+  type BetSlip,
+  type IntakeIssue,
+  type IntakeResult,
+  intakeManual,
+  intakePaste,
+  type Schemas,
+} from "./api";
+import { type Check, CheckPanel, IssueLine, LegReview, utc } from "./CheckPanel";
 import {
   emptyLeg,
   fromDraft,
@@ -25,7 +32,7 @@ type Sent<T> = { body: T; snapshot: string; legUids: string[] };
 const input =
   "w-full rounded-sm border border-rule bg-white px-2 py-1.5 text-sm text-ink aria-[invalid=true]:border-bad";
 
-export function NewAnalysis() {
+export function NewAnalysis({ onContinue }: { onContinue: (result: IntakeResult) => void }) {
   const form = useForm<SlipValues, unknown, ParsedSlip>({
     resolver: zodResolver(slipSchema),
     defaultValues: { text: "", stake_usd: "", gross_payout_usd: "", legs: [] },
@@ -51,7 +58,10 @@ export function NewAnalysis() {
     onSuccess: (result, { snapshot, legUids }) => setCheck({ result, snapshot, legUids }),
   });
 
+  const pending = paste.isPending || manual.isPending;
+
   async function submitPaste() {
+    if (pending) return;
     const ok = await form.trigger(["text", "stake_usd", "gross_payout_usd"]);
     const { text, stake_usd, gross_payout_usd } = form.getValues();
     if (!text.trim()) {
@@ -68,6 +78,7 @@ export function NewAnalysis() {
   }
 
   const submitManual = form.handleSubmit((parsed) => {
+    if (pending) return;
     paste.reset();
     manual.mutate({
       body: toBetSlip(parsed),
@@ -82,7 +93,6 @@ export function NewAnalysis() {
   const retry = paste.isError
     ? () => paste.variables && paste.mutate(paste.variables)
     : () => manual.variables && manual.mutate(manual.variables);
-  const pending = paste.isPending || manual.isPending;
   const { errors } = form.formState;
 
   return (
@@ -95,6 +105,22 @@ export function NewAnalysis() {
           aria-busy={pending}
         >
           <section
+            aria-labelledby="position-heading"
+            className="rounded-sm border border-rule bg-panel p-4"
+          >
+            <h3 id="position-heading" className="text-sm font-semibold">
+              Position
+            </h3>
+            <p className="mt-1 text-xs text-muted">
+              Used for pasted and manual slips alike. Amounts are kept exactly as typed.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-[10rem_14rem]">
+              <SlipField name="stake_usd" label="Stake (USD)" />
+              <SlipField name="gross_payout_usd" label="Quoted gross payout (USD, optional)" />
+            </div>
+          </section>
+
+          <section
             aria-labelledby="paste-heading"
             className="rounded-sm border border-rule bg-panel p-4"
           >
@@ -105,6 +131,10 @@ export function NewAnalysis() {
               One leg per line, or separate with ; or +. Formats: <Code>Team ML @ 0.56</Code>{" "}
               <Code>Team -3.5 @ 0.52</Code> <Code>Team A/Team B over 47.5 @ 0.51</Code>. Player
               props: add them as legs below.
+            </p>
+            <p className="mt-1 text-xs text-warn">
+              No live event catalog is connected yet. Pasted legs are parsed, but their events must
+              be completed by hand.
             </p>
             <label htmlFor="slip-text" className="sr-only">
               Slip text
@@ -122,17 +152,18 @@ export function NewAnalysis() {
                 {errors.text.message}
               </p>
             )}
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-[10rem_10rem_1fr] sm:items-end">
-              <SlipField name="stake_usd" label="Stake (USD)" />
-              <SlipField name="gross_payout_usd" label="Quoted gross payout (USD, optional)" />
-              <div className="col-span-2 flex flex-wrap items-center gap-3 sm:col-span-1 sm:justify-end">
-                {legs.fields.length > 0 && (
-                  <span className="text-xs text-muted">Replaces the legs below.</span>
-                )}
-                <button type="button" onClick={submitPaste} disabled={pending} className={button}>
-                  {paste.isPending ? "Parsing…" : "Parse into legs"}
-                </button>
-              </div>
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
+              {legs.fields.length > 0 && (
+                <span className="text-xs text-muted">Replaces the legs below.</span>
+              )}
+              <button
+                type="button"
+                onClick={submitPaste}
+                aria-disabled={pending || undefined}
+                className={button}
+              >
+                {paste.isPending ? "Parsing…" : "Parse into legs"}
+              </button>
             </div>
           </section>
 
@@ -169,7 +200,7 @@ export function NewAnalysis() {
               );
             })}
             <div className="flex justify-end">
-              <button type="submit" disabled={pending} className={button}>
+              <button type="submit" aria-disabled={pending || undefined} className={button}>
                 {manual.isPending ? "Checking…" : "Check legs"}
               </button>
             </div>
@@ -177,12 +208,17 @@ export function NewAnalysis() {
         </form>
         <CheckPanel check={check} stale={stale} pending={pending} error={error} onRetry={retry} />
       </div>
+      {check && (
+        <div className="mt-6">
+          <LegReview check={check} stale={stale} onContinue={onContinue} />
+        </div>
+      )}
     </FormProvider>
   );
 }
 
 const button =
-  "rounded-sm bg-ink px-3 py-1.5 text-sm font-medium text-panel hover:bg-ink/85 disabled:opacity-50";
+  "rounded-sm bg-ink px-3 py-1.5 text-sm font-medium text-panel hover:bg-ink/85 aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 const quiet = "rounded-sm border border-rule px-2 py-1 text-xs font-medium hover:bg-rule/40";
 
 function Code({ children }: { children: string }) {
@@ -255,10 +291,12 @@ function LegCard({
         <span className="font-mono text-xs uppercase tracking-wide text-muted">
           {stale && draft ? `${stateLabel} before edits` : stateLabel}
         </span>
-        {rawText && (
+        {rawText ? (
           <span className="truncate font-mono text-xs text-muted" title={rawText}>
             Pasted: {rawText}
           </span>
+        ) : (
+          <span className="font-mono text-xs text-muted">Entered by hand</span>
         )}
         <button
           type="button"

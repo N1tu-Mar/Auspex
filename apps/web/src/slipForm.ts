@@ -36,9 +36,11 @@ const oneOf = <T extends string>(labels: Record<T, string>, message: string) =>
   z.string().pipe(z.enum(Object.keys(labels) as [T, ...T[]], { error: message }));
 
 const text = z.string().trim();
+// Money and prices stay strings end to end. Checks are pattern-only; no float conversion.
+const nonZero = (v: string) => /[1-9]/.test(v);
 const usd = (message: string, optional = false) =>
   text.refine(
-    (v) => (optional && v === "") || (/^\d+(\.\d{1,2})?$/.test(v) && Number(v) > 0),
+    (v) => (optional && v === "") || (/^\d+(\.\d{1,2})?$/.test(v) && nonZero(v)),
     message,
   );
 
@@ -59,7 +61,7 @@ const legSchema = z.object({
   side: oneOf(SIDES, "Choose a side."),
   line: text.refine((v) => v === "" || /^[+-]?\d+(\.\d+)?$/.test(v), "Line must be a number."),
   market_price_usd: text.refine(
-    (v) => /^0?\.\d{1,4}$/.test(v) && Number(v) > 0,
+    (v) => /^0?\.\d{1,4}$/.test(v) && nonZero(v),
     "Price must be above 0 and below 1 USD, with up to 4 decimals.",
   ),
   polymarket_market_id: text,
