@@ -5,6 +5,9 @@ description = "Auspex FastAPI application."
 requires-python = ">=3.12"
 dependencies = [
     "auspex-contracts",
+    "auspex-prediction",
+    "auspex-research",
+    "auspex-sports",
     "alembic>=1.14",
     "fastapi>=0.115",
     "psycopg[binary]>=3.2",
@@ -15,6 +18,9 @@ dependencies = [
 
 [tool.uv.sources]
 auspex-contracts = { workspace = true }
+auspex-prediction = { workspace = true }
+auspex-research = { workspace = true }
+auspex-sports = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

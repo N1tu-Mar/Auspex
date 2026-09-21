@@ -144,6 +144,9 @@ source = { editable = "apps/api" }
 dependencies = [
     { name = "alembic" },
     { name = "auspex-contracts" },
+    { name = "auspex-prediction" },
+    { name = "auspex-research" },
+    { name = "auspex-sports" },
     { name = "fastapi" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic-settings" },
@@ -155,6 +158,9 @@ dependencies = [
 requires-dist = [
     { name = "alembic", specifier = ">=1.14" },
     { name = "auspex-contracts", editable = "packages/contracts" },
+    { name = "auspex-prediction", editable = "services/prediction" },
+    { name = "auspex-research", editable = "services/research" },
+    { name = "auspex-sports", editable = "services/sports" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic-settings", specifier = ">=2.6" },

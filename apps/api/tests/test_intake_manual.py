@@ -3,10 +3,12 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.db import get_session
 from app.intake import get_now
 from app.main import app
 
@@ -21,6 +23,7 @@ client = TestClient(app)
 @pytest.fixture(autouse=True)
 def frozen_clock() -> Iterator[None]:
     app.dependency_overrides[get_now] = lambda: NOW
+    app.dependency_overrides[get_session] = lambda: MagicMock()
     yield
     app.dependency_overrides.clear()
 

@@ -2,22 +2,33 @@
 
 Intake never guesses. A leg is RESOLVED only when every event, participant, market,
 and settlement detail is explicit; otherwise it is returned editable with issues.
-Nothing here is persisted yet (see docs/workstreams/requests/backend-intake-persistence.md).
+Every result, including unresolved and rejected ones, is persisted append-only and can be read
+back by trace ID.
 """
 
 import re
 import uuid
-from datetime import UTC, datetime
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
+from functools import partial
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
 from fastapi.exceptions import RequestValidationError
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
+from app.db import BetSlipRecord, IntakeRecord, get_session
+from app.errors import ApiError, ApiFailure, ErrorCode
+from app.providers import get_polymarket
 from auspex_contracts import BetLeg, BetSlip, LegStatus, MarketType, Side, Sport
 from auspex_contracts.bet_slip import MarketPriceUsd, PositiveUsd
+from auspex_research import catalog as research_catalog
+from auspex_research.errors import ProviderError, ProviderErrorKind
+from auspex_research.providers import PolymarketProvider
 
 
 class IntakeState(StrEnum):
@@ -34,6 +45,7 @@ class IssueCode(StrEnum):
     UNEXPECTED_LINE = "UNEXPECTED_LINE"
     EVENT_NOT_IDENTIFIED = "EVENT_NOT_IDENTIFIED"
     EVENT_NOT_FOUND = "EVENT_NOT_FOUND"
+    CATALOG_UNAVAILABLE = "CATALOG_UNAVAILABLE"
     AMBIGUOUS_EVENT = "AMBIGUOUS_EVENT"
     SETTLEMENT_UNCONFIRMED = "SETTLEMENT_UNCONFIRMED"
     UNSUPPORTED_STATUS = "UNSUPPORTED_STATUS"
@@ -66,8 +78,9 @@ class EventCandidate(_Model):
     sport: Sport
     league: str
     event_start_utc: AwareDatetime
-    home_participant: str
-    away_participant: str
+    home_participant: str | None = None
+    away_participant: str | None = None
+    participants: list[str] = Field(default_factory=list)
 
 
 class LegDraft(_Model):
@@ -103,6 +116,9 @@ class IntakeResult(_Model):
     issues: list[IntakeIssue]
     slip: BetSlip | None = Field(
         default=None, description="Present only when state is RESOLVED; ready for analysis."
+    )
+    bet_slip_id: uuid.UUID | None = Field(
+        default=None, description="Stored slip snapshot; present only when state is RESOLVED."
     )
 
 
@@ -181,6 +197,7 @@ def build_result(
     now: datetime,
 ) -> IntakeResult:
     state = state_of(issues)
+    resolved = state is IntakeState.RESOLVED
     return IntakeResult(
         trace_id=uuid.uuid4(),
         received_at_utc=now,
@@ -189,23 +206,67 @@ def build_result(
         original_input=original_input,
         legs=legs,
         issues=issues,
-        slip=slip if state is IntakeState.RESOLVED else None,
+        slip=slip if resolved else None,
+        bet_slip_id=uuid.uuid4() if resolved and slip is not None else None,
     )
 
 
+def persist(session: Session, result: IntakeResult) -> None:
+    """Insert-only: one intake row, plus the slip snapshot when resolved."""
+    try:
+        if result.slip is not None:
+            session.add(
+                BetSlipRecord(
+                    id=result.bet_slip_id,
+                    original_input=result.slip.original_input,
+                    slip=result.slip.model_dump(mode="json"),
+                )
+            )
+            session.flush()
+        session.add(
+            IntakeRecord(
+                id=result.trace_id,
+                received_at=result.received_at_utc,
+                source=result.source,
+                state=result.state.value,
+                original_input=result.original_input,
+                result=result.model_dump(mode="json"),
+                bet_slip_id=result.bet_slip_id,
+            )
+        )
+        session.commit()
+    except SQLAlchemyError as exc:
+        session.rollback()
+        raise ApiFailure(
+            503, ErrorCode.PERSISTENCE_FAILED, "Result could not be stored; nothing was saved."
+        ) from exc
+
+
 router = APIRouter(prefix="/api/v1/bet-slips/intake", responses={422: {"model": IntakeError}})
+Db = Annotated[Session, Depends(get_session)]
 
 
 @router.post("/manual")
-def intake_manual(slip: BetSlip, now: Now) -> IntakeResult:
-    """Check a manually entered slip against pregame intake rules. Not persisted."""
+def intake_manual(slip: BetSlip, now: Now, session: Db) -> IntakeResult:
+    """Check a manually entered slip against pregame intake rules and store the result."""
     issues: list[IntakeIssue] = []
     drafts: list[LegDraft] = []
     for index, leg in enumerate(slip.legs):
         leg_issues = check_leg(index, leg, now)
         issues += leg_issues
         drafts.append(LegDraft(index=index, state=state_of(leg_issues), **leg.model_dump()))
-    return build_result("manual", slip.original_input, drafts, issues, slip, now)
+    result = build_result("manual", slip.original_input, drafts, issues, slip, now)
+    persist(session, result)
+    return result
+
+
+@router.get("/{trace_id}", responses={404: {"model": ApiError}})
+def get_intake(trace_id: uuid.UUID, session: Db) -> IntakeResult:
+    """The stored intake result (editable legs, issues, normalized slip) for a trace ID."""
+    record = session.get(IntakeRecord, trace_id)
+    if record is None:
+        raise ApiFailure(404, ErrorCode.NOT_FOUND, f"No intake record {trace_id}.")
+    return IntakeResult.model_validate(record.result)
 
 
 def intake_error(exc: RequestValidationError) -> IntakeError:
@@ -231,40 +292,111 @@ def intake_error(exc: RequestValidationError) -> IntakeError:
 
 
 class CatalogEvent(_Model):
-    """Known event used to resolve pasted participant names. Supplied by a provider later."""
+    """Known event used to resolve pasted participant names.
+
+    `home_participant`/`away_participant` stay null when the provider does not say which side is
+    which; a pasted moneyline/spread leg then stays unresolved instead of guessing a side.
+    """
 
     event_id: str
     sport: Sport
     league: str
     event_start_utc: AwareDatetime
-    home_participant: str
-    away_participant: str
+    home_participant: str | None = None
+    away_participant: str | None = None
+    teams: list[str] = Field(default_factory=list, description="Used when home/away is unknown.")
     aliases: dict[str, list[str]] = Field(
         default_factory=dict, description="Participant name -> accepted short names."
     )
     status: LegStatus = LegStatus.PREGAME
     settlement_rule_refs: dict[MarketType, str] = Field(default_factory=dict)
 
-    def side_of(self, name: str) -> Side | None:
-        key = name.casefold()
-        for participant, side in (
-            (self.home_participant, Side.HOME),
-            (self.away_participant, Side.AWAY),
-        ):
+    def participants(self) -> list[str]:
+        known = [self.home_participant, self.away_participant]
+        return self.teams or [name for name in known if name]
+
+    def identify(self, name: str) -> str | None:
+        """The participant `name` refers to: exact match after normalization, else None."""
+        wanted = research_catalog.normalize_name(name)
+        for participant in self.participants():
             names = [participant, *self.aliases.get(participant, [])]
-            if key in (n.casefold() for n in names):
-                return side
+            if wanted in (research_catalog.normalize_name(n) for n in names):
+                return participant
         return None
 
+    def side_of(self, name: str) -> Side | None:
+        participant = self.identify(name)
+        if participant is None:
+            return None
+        if participant == self.home_participant:
+            return Side.HOME
+        return Side.AWAY if participant == self.away_participant else None
+
     def candidate(self) -> EventCandidate:
-        return EventCandidate.model_validate(
-            self.model_dump(include=set(EventCandidate.model_fields))
+        return EventCandidate(
+            **self.model_dump(include=set(EventCandidate.model_fields) - {"participants"}),
+            participants=self.participants(),
         )
 
 
-def get_event_catalog() -> list[CatalogEvent]:
-    # No market-data provider is integrated yet, so pasted legs stay unresolved in production.
-    return []
+EventCatalog = Callable[[], Awaitable[list[CatalogEvent]]]
+
+# Provider league slug -> (sport, league). Leagues outside the modeled set are not resolvable.
+LEAGUES = {"nfl": (Sport.NFL, "NFL"), "mlb": (Sport.MLB, "MLB")}
+CATALOG_WINDOW = timedelta(days=14)
+CATALOG_PAGE = 100
+CATALOG_MAX_PAGES = 10
+
+
+def to_local(event: research_catalog.CatalogEvent) -> CatalogEvent | None:
+    """Provider event -> resolvable event, or None if it lacks a start, league, or two teams."""
+    league = LEAGUES.get(event.league_slug or "")
+    if league is None or event.start_utc is None or len(event.teams) != 2:
+        return None
+    status = LegStatus.PREGAME
+    if event.ended:
+        status = LegStatus.COMPLETED
+    elif event.live or not event.is_open:
+        status = LegStatus.LIVE if event.live else LegStatus.UNSUPPORTED
+    return CatalogEvent(
+        event_id=event.event_id,
+        sport=league[0],
+        league=league[1],
+        event_start_utc=event.start_utc,
+        teams=[team.name for team in event.teams],
+        aliases={
+            team.name: [n for n in (team.abbreviation, team.alias, team.safe_name) if n]
+            for team in event.teams
+        },
+        status=status,
+    )
+
+
+async def load_catalog(
+    provider: PolymarketProvider, now: datetime, *, max_pages: int = CATALOG_MAX_PAGES
+) -> list[CatalogEvent]:
+    """Open provider events starting within the window. Raises ProviderError; never truncates."""
+    events: list[CatalogEvent] = []
+    for page_no in range(max_pages):
+        response = await provider.list_events(
+            start_after=now,
+            start_before=now + CATALOG_WINDOW,
+            limit=CATALOG_PAGE,
+            offset=page_no * CATALOG_PAGE,
+        )
+        page = response.data
+        events += [e for raw in page.events if (e := to_local(raw)) is not None]
+        if len(page.events) + len(page.skipped) < CATALOG_PAGE:
+            return events
+    raise ProviderError(
+        ProviderErrorKind.UNAVAILABLE, provider.source.provider, "catalog exceeds page cap"
+    )
+
+
+def get_event_catalog(
+    provider: Annotated[PolymarketProvider, Depends(get_polymarket)], now: Now
+) -> EventCatalog:
+    return partial(load_catalog, provider, now)
 
 
 class PasteIntakeRequest(_Model):
@@ -325,7 +457,7 @@ def resolve_leg(
         update={"market_type": market, "line": line, "side": side, "market_price_usd": price}
     )
 
-    matches = [event for event in catalog if all(event.side_of(name) for name in names)]
+    matches = [event for event in catalog if all(event.identify(name) for name in names)]
     if not matches:
         return fail(IssueCode.EVENT_NOT_FOUND, f"No known event matches {' / '.join(names)}.")
     if len(matches) > 1:
@@ -338,12 +470,18 @@ def resolve_leg(
         side = event.side_of(names[0])
     draft = draft.model_copy(
         update={
-            **event.candidate().model_dump(),
+            **event.candidate().model_dump(exclude={"participants"}),
             "side": side,
             "status": event.status,
             "settlement_rule_ref": event.settlement_rule_refs.get(market),
         }
     )
+    if side is None:
+        return fail(
+            IssueCode.MISSING_FIELD,
+            "The provider does not say which team is home or away; choose the side.",
+            "side",
+        )
     if price is None:
         return fail(
             IssueCode.MISSING_FIELD, "Quoted price is required ('@ 0.55').", "market_price_usd"
@@ -360,17 +498,33 @@ def resolve_leg(
     return draft.model_copy(update={"state": state_of(issues)}), issues, leg
 
 
-Catalog = Annotated[list[CatalogEvent], Depends(get_event_catalog)]
+Catalog = Annotated[EventCatalog, Depends(get_event_catalog)]
 
 
 @router.post("/paste")
-def intake_paste(request: PasteIntakeRequest, catalog: Catalog, now: Now) -> IntakeResult:
-    """Parse pasted slip text into editable legs; resolve only exact, unique matches."""
+async def intake_paste(
+    request: PasteIntakeRequest, catalog: Catalog, now: Now, session: Db
+) -> IntakeResult:
+    """Parse pasted slip text into editable legs; resolve only exact, unique provider matches.
+
+    If the provider catalog cannot be read, every leg stays unresolved with CATALOG_UNAVAILABLE.
+    """
+    events: list[CatalogEvent] = []
+    outage: IntakeIssue | None = None
+    try:
+        events = await catalog()
+    except ProviderError as exc:
+        outage = IntakeIssue(
+            code=IssueCode.CATALOG_UNAVAILABLE,
+            message=f"Event catalog unavailable ({exc.kind}); try again.",
+        )
     issues: list[IntakeIssue] = []
     drafts: list[LegDraft] = []
     legs: list[BetLeg] = []
     for index, raw in enumerate(part for part in LEG_SPLIT.split(request.text.strip()) if part):
-        draft, leg_issues, leg = resolve_leg(index, raw, catalog, now)
+        draft, leg_issues, leg = resolve_leg(index, raw, events, now)
+        if outage is not None and any(i.code is IssueCode.EVENT_NOT_FOUND for i in leg_issues):
+            leg_issues = [outage.model_copy(update={"leg_index": index})]
         drafts.append(draft)
         issues += leg_issues
         if leg is not None:
@@ -385,4 +539,6 @@ def intake_paste(request: PasteIntakeRequest, catalog: Catalog, now: Now) -> Int
             stake_usd=request.stake_usd,
             gross_payout_usd=request.gross_payout_usd,
         )
-    return build_result("paste", request.text, drafts, issues, slip, now)
+    result = build_result("paste", request.text, drafts, issues, slip, now)
+    persist(session, result)
+    return result
