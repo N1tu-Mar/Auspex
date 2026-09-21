@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { type IntakeIssue, IntakeRequestError, type IntakeResult } from "./api";
 import { MARKET_TYPES, SIDES } from "./slipForm";
 
@@ -36,8 +37,14 @@ export function CheckPanel({
   error: Error | null;
   onRetry: () => void;
 }) {
+  const panel = useRef<HTMLElement>(null);
+  // On narrow screens the panel sits below the legs; bring each new outcome into view.
+  useEffect(() => {
+    if (check || error) panel.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }, [check, error]);
   return (
     <aside
+      ref={panel}
       aria-labelledby="check-heading"
       className="flex flex-col gap-4 rounded-sm border border-rule bg-panel p-4 lg:sticky lg:top-4"
     >

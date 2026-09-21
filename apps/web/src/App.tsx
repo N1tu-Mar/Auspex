@@ -14,6 +14,8 @@ export function App() {
   const health = useQuery({ queryKey: ["health"], queryFn: fetchHealth, retry: false });
   const status = health.data?.status ?? (health.isError ? "error" : "loading");
   const database = health.data?.database ?? "unknown";
+  const tone = (value: string) =>
+    value === "ok" ? "text-ok" : health.isPending ? "text-muted" : "text-bad";
 
   return (
     <div className="min-h-screen bg-ground font-sans text-ink">
@@ -24,11 +26,11 @@ export function App() {
           <dl aria-live="polite" className="ml-auto flex gap-4 font-mono text-xs">
             <div className="flex gap-1.5">
               <dt className="text-muted">API</dt>
-              <dd className={status === "ok" ? "text-ok" : "text-bad"}>{status}</dd>
+              <dd className={tone(status)}>{status}</dd>
             </div>
             <div className="flex gap-1.5">
               <dt className="text-muted">Database</dt>
-              <dd className={database === "ok" ? "text-ok" : "text-bad"}>{database}</dd>
+              <dd className={tone(database)}>{database}</dd>
             </div>
           </dl>
         </div>
